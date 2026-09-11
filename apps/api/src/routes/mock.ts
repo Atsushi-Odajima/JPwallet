@@ -39,6 +39,8 @@ mockRoutes.post('/mock/bank/deposit', async (c) => {
         amount: minorAmount,
         payer_name: z.string().trim().max(60).optional(),
         external_ref: z.string().trim().min(1).max(100).optional(),
+        /** ポイント購入の振込識別コード（PTxxxxxxxx）。振込人名に含めても照合される */
+        reference: z.string().trim().max(40).optional(),
       })
       .refine((v) => v.account_number || v.virtual_account_id, { message: 'account_number または virtual_account_id が必要です', path: ['account_number'] }),
   );
@@ -55,6 +57,7 @@ mockRoutes.post('/mock/bank/deposit', async (c) => {
     p_amount: body.amount,
     p_payer_name: body.payer_name ?? null,
     p_external_ref: body.external_ref ?? null,
+    p_reference: body.reference ?? null,
   });
 
   if (result.status === 'unmatched') {

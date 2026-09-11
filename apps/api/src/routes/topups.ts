@@ -1,6 +1,7 @@
-import { TEST_CARDS, type Page, type Topup, type VirtualBankAccount } from '@payccount/shared';
+import type { Page, Topup, VirtualBankAccount } from '@payccount/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { INVALID_TEST_CARD_MESSAGE, cardBrand, cardSchema, isExpValid, testCardOutcome } from '../lib/cards';
 import { ApiError } from '../lib/errors';
 import { minorAmount, paginationQuery, parseBody, parseQuery } from '../lib/validate';
 import { requireUser } from '../middleware/user-auth';
@@ -11,35 +12,6 @@ export const topupRoutes = new Hono<AppEnv>();
 
 topupRoutes.use('/me/topups/*', requireUser);
 topupRoutes.use('/me/topups', requireUser);
-
-const cardSchema = z.object({
-  number: z
-    .string()
-    .transform((s) => s.replace(/[\s-]/g, ''))
-    .refine((s) => /^\d{13,19}$/.test(s), 'カード番号は 13〜19 桁の数字で入力してください'),
-  exp: z.string().refine((s) => /^(0[1-9]|1[0-2])\s*\/\s*(\d{2}|\d{4})$/.test(s.trim()), '有効期限は MM/YY 形式で入力してください'),
-  cvc: z.string().refine((s) => /^\d{3,4}$/.test(s), 'セキュリティコードは 3〜4 桁の数字です'),
-  name: z.string().trim().max(60).optional(),
-});
-
-/** 有効期限が過去なら false */
-function isExpValid(exp: string, now: Date): boolean {
-  const m = /^(\d{2})\s*\/\s*(\d{2}|\d{4})$/.exec(exp.trim());
-  if (!m) return false;
-  const month = Number(m[1]);
-  let year = Number(m[2]);
-  if (year < 100) year += 2000;
-  const endOfMonth = new Date(Date.UTC(year, month, 0, 23, 59, 59));
-  return endOfMonth.getTime() >= now.getTime();
-}
-
-function cardBrand(number: string): string {
-  if (number.startsWith('4')) return 'visa';
-  if (/^5[1-5]/.test(number) || /^2[2-7]/.test(number)) return 'mastercard';
-  if (/^3[47]/.test(number)) return 'amex';
-  if (/^35/.test(number)) return 'jcb';
-  return 'card';
-}
 
 /**
  * POST /me/topups/card
@@ -63,9 +35,11 @@ topupRoutes.post('/me/topups/card', async (c) => {
   const number = body.card.number;
   const last4 = number.slice(-4);
   const brand = cardBrand(number);
-  const idempotencyKey = c.req.header('Idempotency-Key') ? `topup_card:${c.var.user!.id}:${c.req.header('Idempotency-Key')}` : null;
+  const outcome = testCardOutcome(number);
+  const idemHeader = c.req.header('Idempotency-Key');
+  const idempotencyKey = idemHeader ? `topup_card:${c.var.user!.id}:${idemHeader}` : null;
 
-  if (number === TEST_CARDS.success) {
+  if (outcome === 'succeeded') {
     const topup = await c.var.db.rpc<Topup>('topup_card', {
       p_user_id: c.var.user!.id,
       p_amount: body.amount,
@@ -78,7 +52,7 @@ topupRoutes.post('/me/topups/card', async (c) => {
     });
     return c.json(topup, 201);
   }
-  if (number === TEST_CARDS.declined) {
+  if (outcome === 'declined') {
     await c.var.db.rpc<Topup>('topup_card', {
       p_user_id: c.var.user!.id,
       p_amount: body.amount,
@@ -91,11 +65,7 @@ topupRoutes.post('/me/topups/card', async (c) => {
     });
     throw new ApiError(402, 'invalid_request_error', 'card_declined', 'カードが拒否されました（テスト用の失敗カード）', 'card.number');
   }
-  throw ApiError.badRequest(
-    'invalid_test_card',
-    `デモではテスト用カード番号のみ使えます（成功: ${TEST_CARDS.success} / 失敗: ${TEST_CARDS.declined}）`,
-    'card.number',
-  );
+  throw ApiError.badRequest('invalid_test_card', INVALID_TEST_CARD_MESSAGE, 'card.number');
 });
 
 topupRoutes.get('/me/topups', async (c) => {

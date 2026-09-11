@@ -495,8 +495,8 @@ redirectToCheckout(session.id);
 - [x] `RATES_PROVIDER=live` 切替（任意）
 
 ### Phase 4 — ポイント
-- [ ] PT 通貨、購入（3 経路）、キャンペーン、ボーナス仕訳
-- [ ] 履歴・残高表示
+- [x] PT 通貨、購入（3 経路）、キャンペーン、ボーナス仕訳
+- [x] 履歴・残高表示
 
 ### Phase 5 — 加盟店 API + Checkout
 - [ ] merchants / api_keys、`/admin/merchants`、キー認証ミドルウェア、冪等性ミドルウェア、レート制限
@@ -567,6 +567,7 @@ redirectToCheckout(session.id);
 - **2026-09-11 Phase 1 完了** — `0002_wallet_jpy.sql`: topups / virtual_bank_accounts / bank_deposit_notifications、`topup_card`（テスト番号で成功・失敗、Idempotency-Key 対応）、`issue_virtual_bank_account`（7 桁口座番号）、`process_bank_deposit`（通知記録 → external_ref で冪等 → 振込先照合 → 金額検証 → topup + 仕訳 `topup_bank` → ユーザー通知。未照合は `unmatched` として記録し API は 404）。API: `/me/topups/card`、`/me/topups`、`/me/topups/bank/virtual-account`、`/me/topups/bank/deposits`、`/mock/bank/deposit`（`DEMO_MOCK_ENDPOINTS` で有効化）。Web: `/topup`（カード / 銀行振込タブ、入金シミュレート、入金通知履歴）、`/wallet/:currency`、`/history`（種別フィルタ・追加読み込み）、`/settings`、通知ベル（10 秒ポーリング）。テスト 34 件（api）+ Playwright でログイン → カードチャージ → 入金通知 → 履歴 → 通知 → 管理者ログインを画面で確認。
 - **2026-09-11 Phase 2 完了** — `0003_multicurrency.sql`: USD/EUR/GBP 追加、`rates`（X/JPY で保存、`get_rate` が逆数・JPY 経由クロスを計算、PT は JPY 等価）、`set_rate` / `reseed_rates` / `list_rates`、`convert_minor`（切り捨て）/ `convert_minor_ceil`、`convert_to_jpy` をレート対応に置換、`fx_quotes`（`qt_` ID、実効レート = ミッド × (1 − spread)、60 秒）、`create_fx_quote` / `execute_fx_quote`（user from − / fx_pool from + / fx_pool to − / user to +、冪等、期限切れは `quote_expired` → 410）/ `expire_fx_quotes`。API: `GET /rates`（公開）、`/me/fx/quotes*`、`/mock/rates/set|refresh`、`/mock/maintenance/run`、Cron の `scheduled` で保守処理。Web: `/exchange`（Quote → 残り秒数 → 実行、レート一覧、両替履歴）、ホームの総資産が JPY 換算に。テスト 45 件（api）。Playwright で JPY 3,000 → USD 19.90 の両替と総資産 ¥4,985 を確認。
 - **2026-09-11 Phase 3 完了** — `0004_crypto.sql`: BTC（8 桁）/ ETH（18 桁）追加とレートシード、`crypto_orders`（成行・即時約定、buy は mid × 1.01 / sell は mid × 0.99、`crypto_custody` 勘定と 4 行仕訳）、`crypto_deposit_addresses`（ユーザー × 資産で決定的な偽アドレス）、`crypto_deposits`（`process_crypto_deposit`、tx hash で冪等）、`crypto_withdrawals`（アドレス形式検証、fake tx hash、通知）。換算ヘルパーを `div()` ベースに書き換えて wei 精度の丸め誤差を排除（`convert_minor` / `_ceil` / `_div` / `_div_ceil`）。API: `GET /crypto/prices`（ミッド・買値・売値）、`/me/crypto/orders|deposit-address|deposits|withdrawals`、`/mock/crypto/set-price|deposit`。`RATES_PROVIDER=live`: Frankfurter（USD/EUR/GBP → JPY）+ CoinGecko（BTC/ETH → JPY）を Cron で 5 分ごとに取得し、失敗した通貨は前回値を維持（偽 fetch でテスト）。Web: `/crypto`（価格カード、購入 / 売却、入金アドレス + 入金シミュレート、出金、売買履歴）。テスト 59 件（api）。Playwright で BTC 購入 → 入金 → 出金 → 総資産 ¥164,900 を確認。
+- **2026-09-11 Phase 4 完了** — `0005_points.sql`: PT 通貨、`point_campaigns`（シード: +1% / ¥10,000 以上 +3%、`pick_point_campaign` は最大ボーナスを選ぶ）、`point_purchases`、`purchase_points`（wallet_jpy: user JPY − / card: card_clearing − → points_issuer JPY +、points_issuer PT −granted / user PT +granted、ボーナスは points_issuer が無裏付けで発行、Idempotency-Key 対応、失敗カードは失敗履歴）、bank_transfer は識別コード `PTxxxxxxxx` を発行して pending にし、`process_bank_deposit` を拡張（`p_reference` または振込人名から抽出 → 金額一致で PT 付与、不一致なら通常チャージ + note）。`create_point_campaign` / `list_point_campaigns`。カード検証を `lib/cards.ts` に共通化。API: `/me/points/campaigns|purchase|purchases`、`/admin/point-campaigns`（GET/POST、管理者のみ）、`/mock/bank/deposit` に `reference`。Web: `/points`（残高、キャンペーン、購入フォーム 3 経路、保留中の振込 + 入金シミュレート、購入履歴）。テスト 73 件（api）。Playwright で JPY 残高購入 → 銀行振込購入 → 入金照合で 6,060 PT を確認。
 
 ## 15. 管理者アカウント
 id:kuro

@@ -7,6 +7,7 @@ import { cryptoRoutes } from './routes/crypto';
 import { fxRoutes } from './routes/fx';
 import { meRoutes } from './routes/me';
 import { mockRoutes } from './routes/mock';
+import { pointsRoutes } from './routes/points';
 import { topupRoutes } from './routes/topups';
 import type { AppDeps, AppEnv } from './types';
 
@@ -86,6 +87,7 @@ export function createApp(deps: AppDeps) {
   app.route('/', topupRoutes);
   app.route('/', fxRoutes);
   app.route('/', cryptoRoutes);
+  app.route('/', pointsRoutes);
   app.route('/', mockRoutes);
   app.route('/', adminRoutes);
 

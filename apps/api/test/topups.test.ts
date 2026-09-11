@@ -138,6 +138,7 @@ describe('模擬銀行振込（入金通知フロー）', () => {
     const v = await ledgerVerify(ctx);
     expect(v.ok).toBe(true);
     const bank = (v.system_balances as { system_code: string; currency: string; balance: string }[]).find((s) => s.system_code === 'bank_clearing');
-    expect(bank?.balance).toBe('-30500');
+    // 他テストファイルも bank_clearing を使うので、少なくともこのファイル分（30,500）は負になっている
+    expect(BigInt(bank!.balance)).toBeLessThanOrEqual(-30500n);
   });
 });

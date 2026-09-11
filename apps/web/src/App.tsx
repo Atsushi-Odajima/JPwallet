@@ -7,6 +7,7 @@ import { HistoryPage } from './pages/History';
 import { HomePage } from './pages/Home';
 import { LoginPage } from './pages/Login';
 import { NotFoundPage } from './pages/NotFound';
+import { PointsPage } from './pages/Points';
 import { SettingsPage } from './pages/Settings';
 import { TopupPage } from './pages/Topup';
 import { WalletPage } from './pages/Wallet';
@@ -30,6 +31,7 @@ export function App() {
           <Route path="/topup" element={<TopupPage />} />
           <Route path="/exchange" element={<ExchangePage />} />
           <Route path="/crypto" element={<CryptoPage />} />
+          <Route path="/points" element={<PointsPage />} />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
