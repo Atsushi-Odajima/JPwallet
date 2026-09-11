@@ -1,0 +1,9 @@
+# wrangler pages dev 用。コピーして .dev.vars を作る（git 管理外）
+# 1. ウォレットの加盟店ダッシュボード（http://localhost:5173/merchant）で店舗（精算通貨 JPY）を登録
+# 2. 開発者 → APIキーを発行 → PAYCCOUNT_SECRET_KEY に貼る
+# 3. 開発者 → Webhook エンドポイント http://localhost:5174/api/webhook を追加 → secret を PAYCCOUNT_WEBHOOK_SECRET に貼る
+PAYCCOUNT_API_URL=http://localhost:8787
+PAYCCOUNT_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+PAYCCOUNT_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# 省略時はリクエストの Origin を使う
+# SHOP_URL=http://localhost:5174

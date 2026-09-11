@@ -1,0 +1,9 @@
+# For `wrangler pages dev`. Copy to .dev.vars (git-ignored).
+# 1. In the wallet's merchant dashboard (http://localhost:5173/merchant) register a store with settlement currency USD
+# 2. Developers → issue an API key → paste into PAYCCOUNT_SECRET_KEY
+# 3. Developers → add webhook endpoint http://localhost:5175/api/webhook → paste the secret into PAYCCOUNT_WEBHOOK_SECRET
+PAYCCOUNT_API_URL=http://localhost:8787
+PAYCCOUNT_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+PAYCCOUNT_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# Defaults to the request origin
+# SHOP_URL=http://localhost:5175

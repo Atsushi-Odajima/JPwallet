@@ -1,0 +1,33 @@
+{
+  "name": "@payccount/shop-global",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sample global e-commerce store (USD, English UI) paying with payCcount; Pages Functions receive webhooks",
+  "type": "module",
+  "scripts": {
+    "dev": "vite build && wrangler pages dev dist --port 5175 --kv ORDERS --compatibility-date=2025-06-01 --compatibility-flags=nodejs_compat --live-reload",
+    "dev:ui": "vite --port 5185",
+    "build": "vite build",
+    "preview": "wrangler pages dev dist --port 5175 --kv ORDERS --compatibility-date=2025-06-01 --compatibility-flags=nodejs_compat",
+    "deploy": "vite build && wrangler pages deploy dist --project-name payccount-shop-global",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@payccount/js": "workspace:*",
+    "@payccount/shared": "workspace:*",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.13.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260911.1",
+    "@tailwindcss/vite": "^4.3.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "tailwindcss": "^4.3.0",
+    "typescript": "^5.9.0",
+    "vite": "^7.3.0",
+    "wrangler": "^4.131.0"
+  }
+}

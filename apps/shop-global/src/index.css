@@ -1,0 +1,6 @@
+@import 'tailwindcss';
+
+:root {
+  color-scheme: light;
+  font-family: 'Inter', system-ui, sans-serif;
+}

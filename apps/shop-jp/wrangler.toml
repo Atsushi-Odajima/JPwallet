@@ -1,0 +1,15 @@
+name = "payccount-shop-jp"
+pages_build_output_dir = "dist"
+compatibility_date = "2025-06-01"
+compatibility_flags = ["nodejs_compat"]
+
+# 注文と Webhook 受信ログの保存先（無料枠の KV）。
+# ローカルの `wrangler pages dev --kv ORDERS` では自動でシミュレートされる。
+# デプロイ時は `wrangler kv namespace create ORDERS` で作った ID に置き換える。
+[[kv_namespaces]]
+binding = "ORDERS"
+id = "00000000000000000000000000000000"
+
+# 秘密情報（PAYCCOUNT_SECRET_KEY, PAYCCOUNT_WEBHOOK_SECRET）は .dev.vars / Pages の環境変数に設定する
+[vars]
+PAYCCOUNT_API_URL = "http://localhost:8787"
