@@ -62,34 +62,36 @@ export function MerchantOverviewPage() {
         <Card title="直近の決済" className="lg:col-span-2" action={<Link to="/merchant/payments" className="text-xs text-brand-600">すべて見る</Link>}>
           {d.recent_payments.length === 0 && <EmptyState>決済はまだありません。「開発者」で APIキーを発行し、Checkout Session を作成してください。</EmptyState>}
           {d.recent_payments.length > 0 && (
-            <table className="w-full text-sm">
-              <thead className="text-left text-xs text-slate-500">
-                <tr>
-                  <th className="py-1">日時</th>
-                  <th>注文</th>
-                  <th>支払</th>
-                  <th className="text-right">精算額</th>
-                  <th className="text-right">状態</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {d.recent_payments.map((p) => (
-                  <tr key={p.id}>
-                    <td className="py-2 text-xs text-slate-500">{formatDate(p.created_at)}</td>
-                    <td className="truncate">{p.order_id ?? p.description ?? '-'}</td>
-                    <td className="text-xs">
-                      <Amount value={p.source_amount} currency={p.source_currency} code symbol={false} trimZeros />
-                    </td>
-                    <td className="text-right font-medium">
-                      <Amount value={p.settlement_amount} currency={p.settlement_currency} />
-                    </td>
-                    <td className="text-right">
-                      <Badge tone={PAYMENT_STATUS_LABEL[p.status]?.tone ?? 'slate'}>{PAYMENT_STATUS_LABEL[p.status]?.label ?? p.status}</Badge>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full whitespace-nowrap text-sm [&_td]:pr-3 [&_th]:pr-3">
+                <thead className="text-left text-xs text-slate-500">
+                  <tr>
+                    <th className="py-1">日時</th>
+                    <th>注文</th>
+                    <th>支払</th>
+                    <th className="text-right">精算額</th>
+                    <th className="text-right">状態</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {d.recent_payments.map((p) => (
+                    <tr key={p.id}>
+                      <td className="py-2 text-xs text-slate-500">{formatDate(p.created_at)}</td>
+                      <td className="max-w-40 truncate">{p.order_id ?? p.description ?? '-'}</td>
+                      <td className="text-xs">
+                        <Amount value={p.source_amount} currency={p.source_currency} code symbol={false} trimZeros />
+                      </td>
+                      <td className="text-right font-medium">
+                        <Amount value={p.settlement_amount} currency={p.settlement_currency} />
+                      </td>
+                      <td className="text-right">
+                        <Badge tone={PAYMENT_STATUS_LABEL[p.status]?.tone ?? 'slate'}>{PAYMENT_STATUS_LABEL[p.status]?.label ?? p.status}</Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </Card>
 

@@ -1,17 +1,9 @@
 import { DEMO_NOTICE } from '@payccount/shared';
-import { FlaskConical } from 'lucide-react';
 
-/** 全画面に表示するデモ表示 */
-export function DemoBanner() {
-  return (
-    <div className="sticky top-0 z-50 flex items-center justify-center gap-2 bg-amber-400 px-3 py-1 text-center text-xs font-semibold text-amber-950">
-      <FlaskConical className="h-3.5 w-3.5" aria-hidden />
-      <span>{DEMO_NOTICE} 実際の資金・カード・暗号資産は扱いません。</span>
-    </div>
-  );
-}
-
-/** TOP ページのフッター */
+/**
+ * デモ表示は TOP ページ（/）の最下部にだけ置く（仕様 §0）。
+ * 他の画面には出さない（上部の帯は見た目を損ねるため廃止）。
+ */
 export function DemoFooter() {
   return (
     <footer className="mt-8 border-t border-slate-200 px-4 py-6 text-center text-xs text-slate-500">

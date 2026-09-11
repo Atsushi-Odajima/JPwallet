@@ -1,6 +1,5 @@
 import { ArrowLeftRight, Bitcoin, Clock, Home, Settings, Sparkles, Wallet } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { DemoBanner } from '../components/DemoBanner';
 import { NotificationBell } from '../components/NotificationBell';
 
 const NAV = [
@@ -17,7 +16,6 @@ const NAV = [
 export function UserLayout() {
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
-      <DemoBanner />
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
           <NavLink to="/" className="flex items-center gap-2 font-bold text-brand-800">

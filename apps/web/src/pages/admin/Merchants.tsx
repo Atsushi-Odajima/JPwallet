@@ -37,36 +37,36 @@ export function AdminMerchantsPage() {
           {q.data && q.data.data.length === 0 && <EmptyState>加盟店はありません</EmptyState>}
           {q.data && q.data.data.length > 0 && (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full whitespace-nowrap text-sm">
                 <thead className="text-left text-xs text-slate-500">
                   <tr>
-                    <th className="py-1">店舗</th>
-                    <th>オーナー</th>
-                    <th>精算</th>
-                    <th className="text-right">残高</th>
-                    <th className="text-right">決済数</th>
+                    <th className="py-1 pr-3">店舗</th>
+                    <th className="pr-3">オーナー</th>
+                    <th className="pr-3">精算</th>
+                    <th className="pr-3 text-right">残高</th>
+                    <th className="pr-3 text-right">決済数</th>
                     <th>登録</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {q.data.data.map((m) => (
                     <tr key={m.id}>
-                      <td className="py-2">
+                      <td className="py-2 pr-3">
                         <p className="font-medium">{m.name}</p>
-                        <p className="font-mono text-[10px] text-slate-400">{m.id}</p>
+                        <p className="font-mono text-[10px] text-slate-400">{m.id.slice(0, 8)}…</p>
                       </td>
-                      <td className="text-xs">{m.owner_email ?? m.owner_user_id}</td>
-                      <td>
+                      <td className="pr-3 text-xs">{m.owner_email ?? m.owner_user_id}</td>
+                      <td className="pr-3">
                         {m.settlement_currency} <span className="text-xs text-slate-500">{m.fee_bps / 100}%</span>
                       </td>
-                      <td className="text-right">
+                      <td className="pr-3 text-right">
                         {m.balance.map((b) => (
                           <span key={b.currency} className="ml-2">
                             <Amount value={b.amount} currency={b.currency} />
                           </span>
                         ))}
                       </td>
-                      <td className="text-right">{m.payments_count}</td>
+                      <td className="pr-3 text-right">{m.payments_count}</td>
                       <td className="text-xs text-slate-500">{formatDate(m.created_at)}</td>
                     </tr>
                   ))}

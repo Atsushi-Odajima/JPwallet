@@ -7,7 +7,7 @@
 ## 0. 前提
 
 - **これはデモアプリケーションです。** 実際の資金・暗号資産・カード情報は扱わない。すべての外部決済・為替・ブロックチェーン連携はモック（模擬）で実装する。
-- TOPページフッターに **「これはデモアプリケーションです。」** を表示する。
+- TOPページフッターに **「これはデモアプリケーションです。」** を表示する。表示は **TOP ページ（`/`）最下部のみ**。他の画面や上部の帯には出さない（2026-09-11 オーナー指示）。
 - 法規制（資金決済法・暗号資産交換業・為替取引等）への対応は **スコープ外**。ライセンス要否は行わない。
 - テスト用の固定値だけを受け付ける。
 - 目的は **「クレジット決済・QR決済に続く第3の国内決済手段」という構想を、動くプロトタイプとして提示できること**。集客・収益性は評価対象外。設計の正しさ（台帳の整合性、API の使いやすさ、Webhook の信頼性）を優先する。
@@ -527,7 +527,7 @@ redirectToCheckout(session.id);
 - [x] shop-global で BTC 払い → 加盟店残高が USD で増え、`fee_revenue` と `fx_pool` / `crypto_custody` に差額が計上される（E2E: $49.99 → 残高 $49.20、fee_revenue $0.79、crypto_custody −$49.99 / +0.00050495 BTC）
 - [x] 返金後、ユーザーの元通貨残高が決済時レートで戻る（$10 → 10,101 sat、全額返金で元の BTC 額に一致）
 - [x] Webhook 配信先を落とした状態で決済 → 復旧後リトライで届く／ダッシュボードから再送できる（`merchant.test.ts` の「Webhook の信頼性」、ダッシュボードの再送・今すぐ配信）
-- [x] 全画面にデモ表示、全 API レスポンスに `X-Demo-Mode: true`
+- [x] デモ表示は TOP ページ最下部のみ（オーナー指示で全画面の上部帯は廃止）、全 API レスポンスに `X-Demo-Mode: true`
 
 ---
 
@@ -588,6 +588,9 @@ redirectToCheckout(session.id);
 - **2026-09-11 Phase 7 完了** — 管理者画面 `/admin/*`（`0007_admin.sql`: `admin_overview` / `admin_list_users` / `admin_get_user` / `admin_list_journals`（口座の持ち主付き）/ `admin_list_accounts` / `admin_list_payments` / `admin_list_checkout_sessions` / `admin_list_webhook_deliveries` / `admin_list_audit_logs`。API `/admin/*` は管理者ロール必須、`/admin/maintenance/run` で Cron 相当を手動実行。Web: 概要（件数・システム勘定・台帳検証・レート・直近仕訳）/ ユーザー（検索・残高・詳細）/ 加盟店（一覧・作成）/ 決済・Session / 台帳（検証・仕訳ブラウザ・全口座）/ Webhook 配信 / キャンペーン / 監査ログ）。E2E（`e2e/`、`pnpm e2e`）: global-setup が API・ウォレット・shop-global を起動して加盟店を用意し、チャージ ¥30,000 → 両替 → BTC 購入 → shop-global で BTC 払い（0.00050495 BTC）→ Webhook で Paid → $10 返金で 10,101 sat 戻る → 台帳 OK の 6 テストが通過。`scripts/ledger-verify.ts`（`pnpm ledger:verify`）。README（構想・スクリーンショット 12 枚・mermaid 図・クイックスタート・Supabase / Cloudflare デプロイ手順）、`docs/architecture.md`（台帳の仕訳例・シーケンス図・ミドルウェア・Webhook・認証）。修正: ログイン後の遷移レース（管理者が `/` に飛ぶ）、管理者画面の白カードの文字色、サンプルEC の Webhook 同時受信での更新消失。最終: typecheck 全パッケージ OK、テスト shared 15 / sdk 6 / api 108 / e2e 6。
 - **2026-09-11 デプロイ準備** — Supabase 互換修正（RPC の `search_path` に `extensions` を追加、seed も同様。ローカル `pnpm db:reset` + api テスト 108 件で確認）。`scripts/deploy/deploy.sh`（`check` / `supabase` / `api` / `web` / `shops` / `smoke` / `all`）: Management API でマイグレーションと seed を適用し Auth（Site URL・6 桁コード付きメール）を設定、`wrangler deploy` + `secret bulk`、ウォレットを `VITE_*` 付きでビルドして Pages へ、管理者ログインで加盟店 2 店（サクラ雑貨店 JPY / Globe Goods USD）を登録して APIキー・Webhook を発行し KV と secrets を用意してサンプル EC を Pages へ、最後に本番でチャージ → 決済 → Webhook → `ledger_verify` のスモーク。`docs/deploy.md` に認証情報の取得場所と Claude Code クラウド環境のネットワーク設定（Full または `api.cloudflare.com` / `api.supabase.com` / `*.supabase.co` / `*.workers.dev` / `*.pages.dev`）を記載。このセッションの環境は Trusted ネットワークで Cloudflare / Supabase に到達できず、実デプロイは環境設定の変更後に実行する。
 - **2026-09-11 本番デプロイ完了** — 環境のネットワークを開放後に `deploy.sh` を実行。Supabase（`payCcount`、ap-northeast-1）に 0001〜0008 + seed を適用、Site URL / リダイレクト許可を設定（無料枠のためメールテンプレートは既定の Magic Link のまま）。Workers `payccount-api`（https://payccount-api.kuroatu0130.workers.dev、Cron 毎分）、Pages `payccount-web` / `payccount-shop-jp` / `payccount-shop-global`（KV `*-orders`）。本番で見つけて直した問題: (1) Supabase のアクセストークンが ES256 で API が 401 → `alg` で HS256 / JWKS を切替、(2) `get_rate_json` が permission denied → `0008_supabase_grants.sql`、(3) wrangler 4.131 の `pages project create` が新 Pages へ委譲して失敗 → REST API で作成、(4) `apps/web` に wrangler が無い → `apps/api` のバイナリを共用。本番スイープ: 管理者ログイン → カード ¥50,000 / 銀行振込 ¥3,000（`/mock/bank/deposit`）→ JPY 3,000 → USD 19.90 → BTC ¥10,000（66,006 sat）→ 3,030 PT → Globe Goods $29.99 を BTC 30,293 sat で支払い（加盟店 USD 29.52、fee $0.47）→ Webhook で Paid → $10 返金 → partially_refunded → 模擬出金 → `ledger_verify` OK（仕訳 10 件）。shop-jp も ¥1,200 を JPY 払いで Paid。
+- **2026-09-11 UI 調整（オーナー指示）** — 上部の黄色いデモ帯を全画面から撤去し、デモ表示は TOP ページ最下部のフッターだけに（`DemoBanner` を削除、`DemoFooter` は Home のみ。Login / Settings / Checkout / 加盟店レイアウトのデモ文言も削除）。スマホ幅（390px）で管理者・加盟店画面を Playwright で撮影して修正: 概要の件数カードを 2 列グリッドに、金額は `whitespace-nowrap`（符号と数字の分離を防止）、システム勘定の code を別行に、表は `overflow-x-auto` + `whitespace-nowrap` でカード内横スクロール、グリッド子要素に `min-w-0`（ページ全体の横はみ出しを解消: ユーザー 201px / 加盟店 40px / 加盟店決済 137px → 0）、`Badge` / `Button` を nowrap、`Card` のアクションを `shrink-0`、管理者・加盟店ヘッダーをスマホで折り返さない構成（メールは sm 以上のみ、店舗切替は 2 行目に全幅）。全ページのスクリーンショットで横スクロールなしを確認し、本番 Pages へ再デプロイ。
+
+## 15. 管理者アカウント
 id:kuro
 pass:atusi0130
 上記で全てが閲覧出来る管理者権限を作成

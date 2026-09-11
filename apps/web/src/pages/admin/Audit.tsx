@@ -25,7 +25,7 @@ export function AdminAuditPage() {
         {q.data && q.data.data.length === 0 && <EmptyState>ログはありません</EmptyState>}
         {q.data && q.data.data.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="w-full whitespace-nowrap text-xs [&_td]:pr-3 [&_th]:pr-3">
               <thead className="text-left text-slate-500">
                 <tr>
                   <th className="py-1">日時</th>

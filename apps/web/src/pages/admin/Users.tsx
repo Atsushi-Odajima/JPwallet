@@ -47,25 +47,25 @@ export function AdminUsersPage() {
           {q.data && q.data.data.length === 0 && <EmptyState>ユーザーがいません</EmptyState>}
           {q.data && q.data.data.length > 0 && (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full whitespace-nowrap text-sm">
                 <thead className="text-left text-xs text-slate-500">
                   <tr>
-                    <th className="py-1">ユーザー</th>
-                    <th>ロール</th>
-                    <th>残高</th>
-                    <th className="text-right">JPY 換算</th>
+                    <th className="py-1 pr-3">ユーザー</th>
+                    <th className="pr-3">ロール</th>
+                    <th className="pr-3">残高</th>
+                    <th className="pr-3 text-right">JPY 換算</th>
                     <th className="text-right">店 / 決済</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {q.data.data.map((u) => (
                     <tr key={u.user_id} className={`cursor-pointer hover:bg-slate-50 ${selected === u.user_id ? 'bg-brand-50' : ''}`} onClick={() => setSelected(u.user_id)}>
-                      <td className="py-2">
+                      <td className="py-2 pr-3">
                         <p className="font-medium">{u.display_name ?? '-'}</p>
                         <p className="text-xs text-slate-500">{u.email}</p>
                       </td>
-                      <td>{u.role === 'admin' ? <Badge tone="red">管理者</Badge> : <Badge tone="slate">ユーザー</Badge>}</td>
-                      <td className="text-xs">
+                      <td className="pr-3">{u.role === 'admin' ? <Badge tone="red">管理者</Badge> : <Badge tone="slate">ユーザー</Badge>}</td>
+                      <td className="pr-3 text-xs">
                         {Object.entries(u.balances)
                           .filter(([, v]) => v !== '0')
                           .map(([c, v]) => (
@@ -74,7 +74,7 @@ export function AdminUsersPage() {
                             </span>
                           ))}
                       </td>
-                      <td className="text-right font-medium">
+                      <td className="pr-3 text-right font-medium">
                         <Amount value={u.total_jpy} currency="JPY" />
                       </td>
                       <td className="text-right text-xs text-slate-500">
@@ -87,7 +87,7 @@ export function AdminUsersPage() {
             </div>
           )}
         </Card>
-        <div>{selected ? <UserDetail userId={selected} /> : <Card><EmptyState>ユーザーを選択すると詳細が表示されます</EmptyState></Card>}</div>
+        <div className="min-w-0">{selected ? <UserDetail userId={selected} /> : <Card><EmptyState>ユーザーを選択すると詳細が表示されます</EmptyState></Card>}</div>
       </div>
     </div>
   );

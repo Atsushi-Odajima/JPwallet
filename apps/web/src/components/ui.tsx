@@ -12,7 +12,7 @@ export function Button({
   ...rest
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; loading?: boolean }) {
   const base =
-    'inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50';
+    'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50';
   const styles: Record<Variant, string> = {
     primary: 'bg-brand-500 text-white hover:bg-brand-600 active:bg-brand-700 shadow-sm',
     secondary: 'bg-white text-slate-800 border border-slate-300 hover:bg-slate-50',
@@ -29,11 +29,11 @@ export function Button({
 
 export function Card({ children, className = '', title, action }: { children: ReactNode; className?: string; title?: ReactNode; action?: ReactNode }) {
   return (
-    <section className={`rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ${className}`}>
+    <section className={`min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ${className}`}>
       {(title || action) && (
         <div className="mb-3 flex items-center justify-between gap-2">
-          {title && <h2 className="text-sm font-semibold text-slate-700">{title}</h2>}
-          {action}
+          {title && <h2 className="min-w-0 text-sm font-semibold text-slate-700">{title}</h2>}
+          {action && <div className="shrink-0">{action}</div>}
         </div>
       )}
       {children}
@@ -97,7 +97,7 @@ export function Badge({ children, tone = 'slate' }: { children: ReactNode; tone?
     red: 'bg-rose-100 text-rose-800',
     blue: 'bg-brand-100 text-brand-700',
   };
-  return <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${tones[tone]}`}>{children}</span>;
+  return <span className={`inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${tones[tone]}`}>{children}</span>;
 }
 
 export function EmptyState({ children }: { children: ReactNode }) {
@@ -106,16 +106,15 @@ export function EmptyState({ children }: { children: ReactNode }) {
 
 export function PageTitle({ children, sub, action }: { children: ReactNode; sub?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="mb-4 flex items-start justify-between gap-2">
-      <div>
+    <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+      <div className="min-w-0">
         <h1 className="text-xl font-bold text-slate-900">{children}</h1>
         {sub && <p className="mt-0.5 text-sm text-slate-500">{sub}</p>}
       </div>
-      {action}
+      {action && <div className="shrink-0">{action}</div>}
     </div>
   );
 }
-
 export function Row({ label, value, mono = false }: { label: ReactNode; value: ReactNode; mono?: boolean }) {
   return (
     <div className="flex items-start justify-between gap-3 py-1.5 text-sm">

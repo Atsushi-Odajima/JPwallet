@@ -277,7 +277,7 @@ function RequestLogs({ merchantId }: { merchantId: string }) {
       {q.data && q.data.data.length === 0 && <EmptyState>まだリクエストはありません</EmptyState>}
       {q.data && q.data.data.length > 0 && (
         <div className="max-h-80 overflow-auto">
-          <table className="w-full text-xs">
+          <table className="w-full whitespace-nowrap text-xs [&_td]:pr-3 [&_th]:pr-3">
             <thead className="sticky top-0 bg-white text-left text-slate-500">
               <tr>
                 <th className="py-1">日時</th>
@@ -293,7 +293,7 @@ function RequestLogs({ merchantId }: { merchantId: string }) {
                 <tr key={l.id}>
                   <td className="py-1 text-slate-500">{formatDate(l.created_at)}</td>
                   <td>{l.method}</td>
-                  <td className="truncate">{l.path}</td>
+                  <td className="max-w-60 truncate">{l.path}</td>
                   <td className={l.status_code >= 400 ? 'text-rose-600' : 'text-emerald-700'}>{l.status_code}</td>
                   <td className="text-right">{l.duration_ms}</td>
                   <td className="text-slate-400">{l.request_id}</td>

@@ -127,7 +127,7 @@ export function AdminLedgerPage() {
         {accounts.isLoading && <Spinner />}
         {accounts.data && (
           <div className="max-h-96 overflow-auto">
-            <table className="w-full text-xs">
+            <table className="w-full whitespace-nowrap text-xs [&_td]:pr-3 [&_th]:pr-3">
               <thead className="sticky top-0 bg-white text-left text-slate-500">
                 <tr>
                   <th className="py-1">種別</th>

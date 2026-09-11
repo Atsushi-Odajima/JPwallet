@@ -35,33 +35,35 @@ export function AdminCampaignsPage() {
           {q.isLoading && <Spinner />}
           {q.data && q.data.data.length === 0 && <EmptyState>キャンペーンはありません</EmptyState>}
           {q.data && q.data.data.length > 0 && (
-            <table className="w-full text-sm">
-              <thead className="text-left text-xs text-slate-500">
-                <tr>
-                  <th className="py-1">名称</th>
-                  <th>ボーナス</th>
-                  <th>最低金額</th>
-                  <th>期間</th>
-                  <th>状態</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {q.data.data.map((c) => {
-                  const active = new Date(c.active_from).getTime() <= now && new Date(c.active_to).getTime() >= now;
-                  return (
-                    <tr key={c.id}>
-                      <td className="py-2 font-medium">{c.name}</td>
-                      <td>+{(Number(c.bonus_rate) * 100).toFixed(2).replace(/\.?0+$/, '')}%</td>
-                      <td>{formatAmount(c.min_amount, 'JPY')} 以上</td>
-                      <td className="text-xs text-slate-500">
-                        {formatDate(c.active_from)} 〜 {formatDate(c.active_to)}
-                      </td>
-                      <td>{active ? <Badge tone="green">実施中</Badge> : <Badge tone="slate">対象外</Badge>}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full whitespace-nowrap text-sm [&_td]:pr-3 [&_th]:pr-3">
+                <thead className="text-left text-xs text-slate-500">
+                  <tr>
+                    <th className="py-1">名称</th>
+                    <th>ボーナス</th>
+                    <th>最低金額</th>
+                    <th>期間</th>
+                    <th>状態</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {q.data.data.map((c) => {
+                    const active = new Date(c.active_from).getTime() <= now && new Date(c.active_to).getTime() >= now;
+                    return (
+                      <tr key={c.id}>
+                        <td className="py-2 font-medium">{c.name}</td>
+                        <td>+{(Number(c.bonus_rate) * 100).toFixed(2).replace(/\.?0+$/, '')}%</td>
+                        <td>{formatAmount(c.min_amount, 'JPY')} 以上</td>
+                        <td className="text-xs text-slate-500">
+                          {formatDate(c.active_from)} 〜 {formatDate(c.active_to)}
+                        </td>
+                        <td>{active ? <Badge tone="green">実施中</Badge> : <Badge tone="slate">対象外</Badge>}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </Card>
         <Card title="キャンペーンを作成">

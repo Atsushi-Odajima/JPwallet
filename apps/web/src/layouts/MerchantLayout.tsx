@@ -1,6 +1,5 @@
 import { BookOpen, Code2, CreditCard, LayoutDashboard, Settings, Store, Wallet } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { DemoBanner } from '../components/DemoBanner';
 import { Select, Spinner } from '../components/ui';
 import { useAuth } from '../lib/auth-context';
 import { MerchantProvider, useMerchant } from '../lib/merchant';
@@ -14,7 +13,7 @@ const NAV = [
   { to: '/merchant/settings', label: '設定', icon: Settings },
 ];
 
-/** 加盟店ダッシュボード（PC 向けサイドバーレイアウト） */
+/** 加盟店ダッシュボード（PC はサイドバー、スマホは上部タブ） */
 export function MerchantLayout() {
   return (
     <MerchantProvider>
@@ -29,17 +28,17 @@ function MerchantShell() {
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-100">
-      <DemoBanner />
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
-          <div className="flex items-center gap-3">
-            <NavLink to="/merchant" className="flex items-center gap-2 font-bold text-brand-800">
-              <img src="/icons/icon.svg" alt="" className="h-7 w-7 rounded-lg" />
-              payCcount <span className="rounded bg-brand-100 px-1.5 py-0.5 text-[10px] font-semibold text-brand-700">加盟店</span>
-            </NavLink>
-            {merchants.length > 0 && merchant && (
-              <div className="flex items-center gap-2">
-                <Store className="h-4 w-4 text-slate-400" />
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
+          <NavLink to="/merchant" className="flex shrink-0 items-center gap-2 font-bold text-brand-800">
+            <img src="/icons/icon.svg" alt="" className="h-7 w-7 rounded-lg" />
+            payCcount <span className="rounded bg-brand-100 px-1.5 py-0.5 text-[10px] font-semibold text-brand-700">加盟店</span>
+          </NavLink>
+          {/* 店舗の切替: スマホでは 2 行目に全幅で表示 */}
+          {merchants.length > 0 && merchant && (
+            <div className="order-last flex w-full items-center gap-2 sm:order-none sm:w-auto sm:flex-1 sm:justify-start">
+              <Store className="h-4 w-4 shrink-0 text-slate-400" />
+              <div className="min-w-0 flex-1 sm:max-w-xs">
                 <Select value={merchant.id} onChange={(e) => select(e.target.value)} className="py-1.5">
                   {merchants.map((m) => (
                     <option key={m.id} value={m.id}>
@@ -47,22 +46,22 @@ function MerchantShell() {
                     </option>
                   ))}
                 </Select>
-                <NavLink to="/merchant/onboard" className="text-xs text-brand-600 underline">
-                  + 追加
-                </NavLink>
               </div>
-            )}
-          </div>
-          <div className="flex items-center gap-3 text-xs text-slate-500">
+              <NavLink to="/merchant/onboard" className="shrink-0 whitespace-nowrap text-xs text-brand-600 underline">
+                + 追加
+              </NavLink>
+            </div>
+          )}
+          <div className="flex shrink-0 items-center gap-3 text-xs text-slate-500">
             <span className="hidden sm:inline">{session?.email}</span>
-            <NavLink to="/" className="flex items-center gap-1 font-medium text-brand-600 hover:underline">
+            <NavLink to="/" className="flex items-center gap-1 whitespace-nowrap font-medium text-brand-600 hover:underline">
               <Wallet className="h-4 w-4" /> ウォレットへ
             </NavLink>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-7xl flex-1 gap-6 px-4 py-6">
+      <div className="mx-auto flex w-full max-w-7xl flex-1 gap-6 px-4 py-4 sm:py-6">
         <aside className="hidden w-52 shrink-0 md:block">
           <nav className="space-y-1">
             {NAV.map(({ to, label, icon: Icon, end }) => (
@@ -80,9 +79,14 @@ function MerchantShell() {
           </nav>
         </aside>
         <main className="min-w-0 flex-1">
-          <nav className="mb-4 flex gap-1 overflow-x-auto md:hidden">
+          <nav className="-mx-4 mb-4 flex gap-1 overflow-x-auto px-4 pb-1 md:hidden">
             {NAV.map(({ to, label, end }) => (
-              <NavLink key={to} to={to} end={end} className={({ isActive }) => `whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium ${isActive ? 'bg-brand-500 text-white' : 'bg-white text-slate-600'}`}>
+              <NavLink
+                key={to}
+                to={to}
+                end={end}
+                className={({ isActive }) => `shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium ${isActive ? 'bg-brand-500 text-white' : 'bg-white text-slate-600'}`}
+              >
                 {label}
               </NavLink>
             ))}
@@ -90,7 +94,6 @@ function MerchantShell() {
           {loading ? <Spinner /> : merchants.length === 0 ? <OnboardPage first /> : <Outlet />}
         </main>
       </div>
-      <footer className="border-t border-slate-200 bg-white px-4 py-3 text-center text-xs text-slate-500">これはデモアプリケーションです。実際の資金は扱いません。</footer>
     </div>
   );
 }

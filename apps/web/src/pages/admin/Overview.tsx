@@ -56,7 +56,7 @@ export function AdminOverviewPage() {
       </div>
       <SuccessText>{msg}</SuccessText>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
           ['ユーザー', d.counts.users],
           ['加盟店', d.counts.merchants],
@@ -65,14 +65,14 @@ export function AdminOverviewPage() {
           ['未完了 Checkout', d.counts.open_sessions],
           ['Webhook 待ち / 失敗', `${d.counts.webhook_pending} / ${d.counts.webhook_failed}`],
         ].map(([label, value]) => (
-          <div key={String(label)} className="rounded-2xl bg-slate-800 p-4">
+          <div key={String(label)} className="rounded-2xl bg-slate-800 p-3 sm:p-4">
             <p className="text-xs text-slate-400">{label}</p>
-            <p className="mt-1 text-2xl font-bold tabular">{value}</p>
+            <p className="mt-1 text-xl font-bold tabular sm:text-2xl">{value}</p>
           </div>
         ))}
-        <div className={`rounded-2xl p-4 ${d.ledger.ok ? 'bg-emerald-900/50' : 'bg-rose-900/60'}`}>
+        <div className={`col-span-2 rounded-2xl p-3 sm:p-4 lg:col-span-1 ${d.ledger.ok ? 'bg-emerald-900/50' : 'bg-rose-900/60'}`}>
           <p className="text-xs text-slate-300">台帳整合性</p>
-          <p className="mt-1 text-2xl font-bold">{d.ledger.ok ? 'OK' : 'NG'}</p>
+          <p className="mt-1 text-xl font-bold sm:text-2xl">{d.ledger.ok ? 'OK' : 'NG'}</p>
           <p className="text-[11px] text-slate-400">
             {d.ledger.journal_count} 仕訳 / {d.ledger.line_count} 行 · {formatDate(d.ledger.checked_at)}
           </p>
@@ -81,28 +81,31 @@ export function AdminOverviewPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="システム勘定（運営）残高">
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs text-slate-500">
-              <tr>
-                <th className="py-1">勘定</th>
-                <th>通貨</th>
-                <th className="text-right">残高</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {d.system_balances.map((s) => (
-                <tr key={`${s.system_code}-${s.currency}`}>
-                  <td className="py-1.5">
-                    {SYSTEM_CODE_LABEL[s.system_code] ?? s.system_code} <span className="font-mono text-[10px] text-slate-400">{s.system_code}</span>
-                  </td>
-                  <td>{s.currency}</td>
-                  <td className="text-right">
-                    <Amount value={s.balance} currency={s.currency} colored trimZeros />
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs text-slate-500">
+                <tr>
+                  <th className="py-1">勘定</th>
+                  <th>通貨</th>
+                  <th className="text-right">残高</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {d.system_balances.map((s) => (
+                  <tr key={`${s.system_code}-${s.currency}`}>
+                    <td className="py-1.5 pr-2">
+                      {SYSTEM_CODE_LABEL[s.system_code] ?? s.system_code}
+                      <span className="block font-mono text-[10px] leading-tight text-slate-400">{s.system_code}</span>
+                    </td>
+                    <td className="pr-2">{s.currency}</td>
+                    <td className="text-right">
+                      <Amount value={s.balance} currency={s.currency} colored trimZeros />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <p className="mt-2 text-[11px] text-slate-500">
             負の残高は「発行 / 預かり」を表します（例: points_issuer の PT はユーザーに発行済みのポイント、card_clearing はカード会社からの未収金）。
           </p>
@@ -111,7 +114,7 @@ export function AdminOverviewPage() {
           <Card title="ユーザー残高（通貨別合計）">
             <ul className="text-sm">
               {d.user_balances_by_currency.map((u) => (
-                <li key={u.currency} className="flex justify-between py-1">
+                <li key={u.currency} className="flex justify-between gap-2 py-1">
                   <span>
                     {u.currency} <span className="text-xs text-slate-500">× {u.accounts} 口座</span>
                   </span>
@@ -124,7 +127,7 @@ export function AdminOverviewPage() {
             <ul className="text-sm">
               {d.merchant_balances_by_currency.length === 0 && <li className="text-slate-500">—</li>}
               {d.merchant_balances_by_currency.map((u) => (
-                <li key={u.currency} className="flex justify-between py-1">
+                <li key={u.currency} className="flex justify-between gap-2 py-1">
                   <span>
                     {u.currency} <span className="text-xs text-slate-500">× {u.accounts} 口座</span>
                   </span>
@@ -137,12 +140,15 @@ export function AdminOverviewPage() {
             <ul className="text-sm">
               {d.volume_by_currency.length === 0 && <li className="text-slate-500">—</li>}
               {d.volume_by_currency.map((v) => (
-                <li key={v.currency} className="flex justify-between py-1">
-                  <span>
+                <li key={v.currency} className="flex items-start justify-between gap-2 py-1">
+                  <span className="shrink-0">
                     {v.currency} <span className="text-xs text-slate-500">× {v.count}</span>
                   </span>
-                  <span>
-                    <Amount value={v.gross} currency={v.currency} /> <span className="text-xs text-slate-500">手数料 <Amount value={v.fees} currency={v.currency} /> · 返金 <Amount value={v.refunded} currency={v.currency} /></span>
+                  <span className="text-right">
+                    <Amount value={v.gross} currency={v.currency} />
+                    <span className="block text-xs text-slate-500">
+                      手数料 <Amount value={v.fees} currency={v.currency} /> · 返金 <Amount value={v.refunded} currency={v.currency} />
+                    </span>
                   </span>
                 </li>
               ))}
@@ -153,13 +159,13 @@ export function AdminOverviewPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="レート">
-          <ul className="grid grid-cols-2 gap-1 text-sm">
+          <ul className="grid gap-1 text-sm sm:grid-cols-2">
             {d.rates.map((r) => (
-              <li key={`${r.base}${r.quote}`} className="flex justify-between rounded bg-slate-50 px-2 py-1">
-                <span>
+              <li key={`${r.base}${r.quote}`} className="flex items-center justify-between gap-2 rounded bg-slate-50 px-2 py-1">
+                <span className="shrink-0">
                   {r.base}/{r.quote}
                 </span>
-                <span className="tabular">
+                <span className="flex items-center gap-1.5 whitespace-nowrap tabular">
                   {Number(r.rate).toLocaleString('ja-JP')} <Badge tone="slate">{r.source}</Badge>
                 </span>
               </li>
@@ -173,7 +179,7 @@ export function AdminOverviewPage() {
                 <p className="font-medium text-slate-800">
                   {JOURNAL_TYPE_LABEL[j.type] ?? j.type} <span className="text-slate-400">{formatDate(j.created_at)}</span>
                 </p>
-                <p className="text-slate-500">{j.lines.map((l) => `${l.owner}: ${l.amount} ${l.currency}`).join(' / ')}</p>
+                <p className="break-words text-slate-500">{j.lines.map((l) => `${l.owner}: ${l.amount} ${l.currency}`).join(' / ')}</p>
               </li>
             ))}
           </ul>

@@ -2,7 +2,6 @@ import type { Profile } from '@payccount/shared';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { DemoFooter } from '../components/DemoBanner';
 import { Button, Card, ErrorText, Input, PageTitle, Row, Select, Spinner, SuccessText } from '../components/ui';
 import { API_URL, api, errorMessage } from '../lib/api';
 import { useAuth } from '../lib/auth-context';
@@ -86,7 +85,6 @@ export function SettingsPage() {
           加盟店ダッシュボードへ →
         </Link>
       </Card>
-      <DemoFooter />
     </div>
   );
 }

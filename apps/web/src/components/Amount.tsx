@@ -8,7 +8,7 @@ interface Props extends FormatOptions {
   colored?: boolean;
 }
 
-/** 金額表示。必ず packages/shared の formatAmount を通す */
+/** 金額表示。必ず packages/shared の formatAmount を通す。符号と数字が別の行に折り返されないよう nowrap */
 export function Amount({ value, currency, className = '', colored = false, ...opts }: Props) {
   let text: string;
   try {
@@ -18,5 +18,5 @@ export function Amount({ value, currency, className = '', colored = false, ...op
   }
   const neg = value.startsWith('-');
   const color = colored ? (neg ? 'text-rose-600' : 'text-emerald-600') : '';
-  return <span className={`tabular ${color} ${className}`}>{text}</span>;
+  return <span className={`tabular whitespace-nowrap ${color} ${className}`}>{text}</span>;
 }

@@ -4,7 +4,6 @@ import { CheckCircle2, ExternalLink, ShieldCheck, Store } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Amount } from '../components/Amount';
-import { DemoBanner } from '../components/DemoBanner';
 import { Badge, Button, Card, ErrorText, Row, Spinner, formatDate } from '../components/ui';
 import { api, errorMessage } from '../lib/api';
 import { useAuth } from '../lib/auth-context';
@@ -65,7 +64,6 @@ export function CheckoutPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-100">
-      <DemoBanner />
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-lg items-center justify-between px-4 py-3">
           <span className="flex items-center gap-2 font-bold text-brand-800">
@@ -101,7 +99,6 @@ export function CheckoutPage() {
           </Card>
         )}
       </main>
-      <footer className="px-4 py-4 text-center text-xs text-slate-500">これはデモアプリケーションです。実際の資金は移動しません。</footer>
     </div>
   );
 }

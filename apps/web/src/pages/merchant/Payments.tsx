@@ -44,7 +44,7 @@ export function MerchantPaymentsPage() {
           {!q.isLoading && items.length === 0 && <EmptyState>決済はありません</EmptyState>}
           {items.length > 0 && (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full whitespace-nowrap text-sm [&_td]:pr-3 [&_th]:pr-3">
                 <thead className="text-left text-xs text-slate-500">
                   <tr>
                     <th className="py-1">日時</th>
@@ -86,7 +86,7 @@ export function MerchantPaymentsPage() {
             </Button>
           )}
         </Card>
-        <div>{selected ? <PaymentDetail merchantId={merchant.id} paymentId={selected} /> : <Card><EmptyState>決済を選択すると詳細が表示されます</EmptyState></Card>}</div>
+        <div className="min-w-0">{selected ? <PaymentDetail merchantId={merchant.id} paymentId={selected} /> : <Card><EmptyState>決済を選択すると詳細が表示されます</EmptyState></Card>}</div>
       </div>
     </div>
   );

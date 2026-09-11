@@ -21,7 +21,7 @@ export function AdminPaymentsPage() {
         {payments.data && payments.data.data.length === 0 && <EmptyState>決済はありません</EmptyState>}
         {payments.data && payments.data.data.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full whitespace-nowrap text-sm [&_td]:pr-3 [&_th]:pr-3">
               <thead className="text-left text-xs text-slate-500">
                 <tr>
                   <th className="py-1">日時</th>
@@ -65,7 +65,7 @@ export function AdminPaymentsPage() {
         {sessions.data && sessions.data.data.length === 0 && <EmptyState>Session はありません</EmptyState>}
         {sessions.data && sessions.data.data.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="w-full whitespace-nowrap text-xs [&_td]:pr-3 [&_th]:pr-3">
               <thead className="text-left text-slate-500">
                 <tr>
                   <th className="py-1">ID</th>
