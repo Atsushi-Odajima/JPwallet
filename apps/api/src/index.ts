@@ -1,6 +1,7 @@
 import { createApp, type App } from './app';
 import { PgDb, SupabaseDb, type Db } from './db';
 import { configFromEnv, type AppConfig, type Bindings } from './env';
+import { runMaintenance } from './services/maintenance';
 
 /**
  * Cloudflare Workers エントリ。
@@ -32,12 +33,13 @@ export default {
     return app.fetch(request, env, ctx);
   },
 
-  async scheduled(_event: ScheduledEvent, env: Bindings, _ctx: ExecutionContext): Promise<void> {
-    // Webhook 再送・レート取得は Phase 5 / Phase 3 で実装する
-    const { makeDb, shared } = getApp(env);
+  /** Cron（毎分）: 期限切れ Quote の掃除、live レート取得、Webhook 再送 */
+  async scheduled(event: ScheduledEvent, env: Bindings, _ctx: ExecutionContext): Promise<void> {
+    const { makeDb, shared, config } = getApp(env);
     const db = makeDb();
     try {
-      // no-op
+      const result = await runMaintenance(db, config, fetch, new Date(event.scheduledTime));
+      console.log('maintenance', JSON.stringify(result));
     } finally {
       if (!shared) await db.close();
     }

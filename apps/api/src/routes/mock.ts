@@ -79,3 +79,31 @@ mockRoutes.post('/mock/bank/deposit', async (c) => {
   }
   return c.json(result, result.status === 'duplicate' ? 200 : 201);
 });
+
+/** POST /mock/rates/set — デモ中に為替レートを動かす */
+mockRoutes.post('/mock/rates/set', async (c) => {
+  const body = await parseBody(
+    c,
+    z.object({
+      base: z.string().trim().min(2).max(5).toUpperCase(),
+      quote: z.string().trim().min(2).max(5).toUpperCase(),
+      rate: z.string().refine((s) => /^\d+(\.\d+)?$/.test(s) && Number(s) > 0, 'rate は正の 10 進数文字列で指定してください'),
+    }),
+  );
+  const rate = await c.var.db.rpc('set_rate', { p_base: body.base, p_quote: body.quote, p_rate: body.rate, p_source: 'mock' });
+  return c.json(rate);
+});
+
+/** POST /mock/maintenance/run — Cron 相当の保守処理（期限切れ Quote 掃除・Webhook 再送）を手動実行 */
+mockRoutes.post('/mock/maintenance/run', async (c) => {
+  const { runMaintenance } = await import('../services/maintenance');
+  const result = await runMaintenance(c.var.db, c.var.config, fetch, new Date());
+  return c.json(result);
+});
+
+/** POST /mock/rates/refresh — RATES_PROVIDER=live なら外部から取得、mock ならシード値に戻す */
+mockRoutes.post('/mock/rates/refresh', async (c) => {
+  const { refreshRates } = await import('../services/rates');
+  const result = await refreshRates(c.var.db, c.var.config, fetch);
+  return c.json(result);
+});
