@@ -76,7 +76,8 @@ scripts/deploy/deploy.sh all        # 全工程（10〜15 分）
 
 ### 注意点
 
-- **メール送信の上限**: Supabase 組み込みの SMTP は 1 時間あたり数通しか送れません。多人数にデモする場合は Supabase → Authentication → SMTP Settings でカスタム SMTP（Resend など無料枠）を設定してください。管理者ログインはパスワードなのでメール不要です
+- **ユーザーのログインはメールのリンク**: Supabase の無料枠 + 既定のメール送信ではメールテンプレートを変更できない（Management API が 400 を返す）ため、6 桁コードではなく既定の「Magic Link」メールが届きます。リンクをタップするとウォレットの `/login` に戻ってログインします。6 桁コードにしたい場合は Supabase → Authentication → SMTP Settings でカスタム SMTP（Resend など無料枠）を設定してから `deploy.sh supabase` を再実行してください（テンプレートに `{{ .Token }}` が入ります）
+- **メール送信の上限**: Supabase 組み込みの SMTP は 1 時間あたり数通しか送れません。多人数にデモする場合もカスタム SMTP を設定してください。管理者ログインはパスワードなのでメール不要です
 - **`/mock/*` が有効**（`DEMO_MOCK_ENDPOINTS=true`）: 「入金をシミュレート」「レート変更」などのデモ操作に必要ですが、認証なしで呼べます。デモ専用の設定です
 - **認証情報のローテーション**: デモ終了後は Cloudflare API トークンと Supabase アクセストークンを Revoke してください。`shops` を再実行すると加盟店の APIキー / Webhook シークレットは新しくなります（古いキーは加盟店ダッシュボードから失効できます）
 - **コード変更後の再デプロイ**: API は `deploy.sh api`、ウォレットは `deploy.sh web`、サンプル EC は `deploy.sh shops`（マイグレーションを追加したら先に `deploy.sh supabase`）

@@ -8,8 +8,8 @@ compatibility_flags = ["nodejs_compat"]
 # デプロイ時は `wrangler kv namespace create ORDERS` で作った ID に置き換える。
 [[kv_namespaces]]
 binding = "ORDERS"
-id = "00000000000000000000000000000000"
+id = "ddace83638904ce0bec842b4d5a75154"
 
 # 秘密情報（PAYCCOUNT_SECRET_KEY, PAYCCOUNT_WEBHOOK_SECRET）は .dev.vars / Pages の環境変数に設定する
 [vars]
-PAYCCOUNT_API_URL = "http://localhost:8787"
+PAYCCOUNT_API_URL = "https://payccount-api.kuroatu0130.workers.dev"

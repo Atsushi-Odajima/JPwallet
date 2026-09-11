@@ -110,9 +110,14 @@ sb_query() { # sql 文字列
   sb_query_file "$TMPDIR_DEPLOY/query.sql"
 }
 
-wrangler_in() { # dir args...
+wrangler_in() { # dir args...  （wrangler は apps/api の devDependency を全アプリで使う）
   local dir=$1; shift
-  (cd "$ROOT/$dir" && pnpm exec wrangler "$@")
+  local bin="$ROOT/apps/api/node_modules/.bin/wrangler"
+  if [ -x "$bin" ]; then
+    (cd "$ROOT/$dir" && "$bin" "$@")
+  else
+    (cd "$ROOT/$dir" && pnpm exec wrangler "$@")
+  fi
 }
 
 # 管理者（kuro）の Supabase Auth トークン
@@ -163,9 +168,11 @@ ensure_pages_project() { # name
   if cf_api GET "/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$name" >/dev/null 2>&1; then
     ok "Pages プロジェクト $name は存在"
   else
+    # wrangler 4.13x の `pages project create` は新しい Pages（Workers 統合）へ委譲して失敗することがあるため REST API で作る（従来の pages.dev）
     log "Pages プロジェクトを作成: $name"
-    wrangler_in apps/web pages project create "$name" --production-branch main \
+    cf_api POST "/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects" "$(jq -cn --arg n "$name" '{name:$n, production_branch:"main"}')" >/dev/null \
       || die "Pages プロジェクト '$name' を作成できません（名前が使用済みなら PAGES_*_PROJECT で別名を指定）"
+    ok "Pages プロジェクト $name を作成"
   fi
 }
 
@@ -191,12 +198,12 @@ cmd_check() {
   log "到達性（このホストへ HTTPS で出られるか）"
   local blocked=() code h
   for h in api.cloudflare.com api.supabase.com "${SUPABASE_URL#https://}"; do
-    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "https://$h/" 2>/dev/null || echo 000)"
+    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "https://$h/" 2>/dev/null)" || code=000
     if [ "$code" = "000" ]; then blocked+=("$h"); printf '  \033[31m✗\033[0m %s (接続不可)\n' "$h"; else ok "$h (HTTP $code)"; fi
   done
   # デプロイ後の確認に使うホスト（未デプロイでも Cloudflare が応答する。000 なら許可リスト漏れの可能性）
   for h in "${WORKERS_SUBDOMAIN}.workers.dev" "${PAGES_WEB_PROJECT}.pages.dev"; do
-    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "https://$h/" 2>/dev/null || echo 000)"
+    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "https://$h/" 2>/dev/null)" || code=000
     if [ "$code" = "000" ]; then warn "$h に接続できません（*.workers.dev / *.pages.dev の許可を確認）"; else ok "$h (HTTP $code)"; fi
   done
   if [ ${#blocked[@]} -gt 0 ]; then
@@ -252,22 +259,30 @@ create table if not exists payccount_meta.migrations (name text primary key, app
   log "検証"
   sb_query "select (select count(*) from currencies) as currencies, (select count(*) from profiles where role = 'admin') as admins, ledger_verify() as ledger" | jq -c '.[0]'
 
-  log "Auth 設定（Site URL / リダイレクト許可 / 6 桁コード付きメールテンプレート）"
+  log "Auth 設定（Site URL / リダイレクト許可）"
+  jq -cn --arg site "$WEB_URL" --arg allow "$WEB_URL/**,$WEB_URL/login,http://localhost:5173/**" \
+    '{site_url: $site, uri_allow_list: $allow, external_email_enabled: true}' > "$TMPDIR_DEPLOY/auth.json"
+  if sb_api PATCH "/projects/$SUPABASE_PROJECT_REF/config/auth" "$TMPDIR_DEPLOY/auth.json" | jq -r '"  site_url=" + (.site_url // "?") + " allow=" + (.uri_allow_list // "?")'; then
+    ok "Site URL / リダイレクト許可を更新"
+  else
+    warn "Auth 設定の更新に失敗しました。Supabase ダッシュボード → Authentication → URL Configuration で手動設定してください（docs/deploy.md）"
+  fi
+
+  # メールテンプレートに 6 桁コード（{{ .Token }}）を入れる。無料枠 + 既定のメール送信では変更できない（400）ので失敗しても続行する。
+  # その場合はメールの「ログイン」リンクでログインする（ウォレットの /login がリンクを受けてセッションを確立する）。
+  log "Auth メールテンプレート（6 桁コード付き。カスタム SMTP 設定時のみ反映）"
   local tpl
   tpl='<h2>payCcount（デモ）ログイン</h2><p>認証コード: <strong style="font-size:24px;letter-spacing:2px">{{ .Token }}</strong></p><p>アプリの画面にこの 6 桁のコードを入力してください。</p><p>または <a href="{{ .ConfirmationURL }}">このリンク</a> を開いてもログインできます。</p><p style="color:#888">これはデモアプリケーションです。心当たりがない場合は無視してください。</p>'
-  jq -cn --arg site "$WEB_URL" --arg allow "$WEB_URL/**,$WEB_URL/login,http://localhost:5173/**" --arg tpl "$tpl" '{
-      site_url: $site,
-      uri_allow_list: $allow,
-      external_email_enabled: true,
+  jq -cn --arg tpl "$tpl" '{
       mailer_subjects_magic_link: "【payCcount デモ】ログイン用の認証コード",
       mailer_templates_magic_link_content: $tpl,
       mailer_subjects_confirmation: "【payCcount デモ】ログイン用の認証コード",
       mailer_templates_confirmation_content: $tpl
-    }' > "$TMPDIR_DEPLOY/auth.json"
-  if sb_api PATCH "/projects/$SUPABASE_PROJECT_REF/config/auth" "$TMPDIR_DEPLOY/auth.json" | jq -r '"  site_url=" + (.site_url // "?")'; then
-    ok "Auth 設定を更新"
+    }' > "$TMPDIR_DEPLOY/auth-tpl.json"
+  if sb_api PATCH "/projects/$SUPABASE_PROJECT_REF/config/auth" "$TMPDIR_DEPLOY/auth-tpl.json" >/dev/null 2>"$TMPDIR_DEPLOY/auth-tpl.err"; then
+    ok "メールテンプレートを更新（6 桁コード）"
   else
-    warn "Auth 設定の更新に失敗しました。Supabase ダッシュボード → Authentication → URL Configuration / Email Templates で手動設定してください（docs/deploy.md）"
+    warn "メールテンプレートは変更できません（無料枠 + 既定のメール送信）。ユーザーはメールの「ログイン」リンクでログインします。6 桁コードにするにはカスタム SMTP を設定して再実行してください"
   fi
 }
 

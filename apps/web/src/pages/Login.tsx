@@ -123,7 +123,7 @@ export function LoginPage() {
                 hint={
                   adapter.mode === 'demo'
                     ? 'デモ認証: メールアドレスを入力するだけでログインできます（認証コードは送信されません）'
-                    : '入力したメールアドレスに 6 桁の認証コードを送ります'
+                    : '入力したメールアドレスにログイン用のリンク（または 6 桁の認証コード）を送ります'
                 }
               />
               <ErrorText>{error}</ErrorText>
@@ -136,7 +136,7 @@ export function LoginPage() {
           {tab === 'user' && otpSent && (
             <form onSubmit={submitOtp} className="space-y-3">
               <p className="text-sm text-slate-600">
-                <span className="font-medium">{email}</span> に送信した 6 桁のコードを入力してください。
+                <span className="font-medium">{email}</span> にメールを送りました。メール内の「ログイン」リンクをタップするとこの画面に戻ってログインします。6 桁のコードが届いた場合は下に入力してください。
               </p>
               <Input
                 label="認証コード"

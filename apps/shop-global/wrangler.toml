@@ -8,8 +8,8 @@ compatibility_flags = ["nodejs_compat"]
 # For deployment replace the id with the one from `wrangler kv namespace create ORDERS`.
 [[kv_namespaces]]
 binding = "ORDERS"
-id = "00000000000000000000000000000000"
+id = "0895f195df2b4e3ead67009f006b4f15"
 
 # Secrets (PAYCCOUNT_SECRET_KEY, PAYCCOUNT_WEBHOOK_SECRET) go to .dev.vars / Pages environment variables
 [vars]
-PAYCCOUNT_API_URL = "http://localhost:8787"
+PAYCCOUNT_API_URL = "https://payccount-api.kuroatu0130.workers.dev"

@@ -1,4 +1,4 @@
-import { SignJWT, createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
+import { SignJWT, createRemoteJWKSet, decodeProtectedHeader, jwtVerify, type JWTPayload } from 'jose';
 import type { AppConfig } from '../env';
 
 export interface AuthClaims {
@@ -11,14 +11,22 @@ const encoder = new TextEncoder();
 const jwksCache = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
 
 /**
- * JWT を検証してクレームを返す。
- *   - JWT_SECRET があれば HS256（Supabase の legacy JWT secret / デモ認証）
- *   - なければ Supabase の JWKS（ES256 等）で検証
+ * JWT を検証してクレームを返す。トークンのヘッダー（alg）で検証方法を選ぶ。
+ *   - HS256 かつ JWT_SECRET あり → 共有シークレット（Supabase の legacy JWT secret / デモ認証）
+ *   - それ以外（ES256 / RS256 など）→ Supabase の JWKS（新しいプロジェクトは「JWT Signing Keys」で ES256 を発行する）
+ * Supabase では anon / service_role キーが HS256 のままでも、ユーザーのアクセストークンは ES256 になり得るため両対応にしている。
  */
 export async function verifyAccessToken(token: string, config: AppConfig): Promise<AuthClaims> {
   let payload: JWTPayload;
-  if (config.jwtSecret) {
-    const res = await jwtVerify(token, encoder.encode(config.jwtSecret), {
+  let alg: string | undefined;
+  try {
+    alg = decodeProtectedHeader(token).alg;
+  } catch {
+    throw new Error('JWT のヘッダーを読めません');
+  }
+  const useSecret = !!config.jwtSecret && (alg === 'HS256' || !config.supabaseUrl);
+  if (useSecret) {
+    const res = await jwtVerify(token, encoder.encode(config.jwtSecret!), {
       algorithms: ['HS256'],
     });
     payload = res.payload;

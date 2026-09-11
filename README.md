@@ -15,6 +15,17 @@ payCcount は「クレジット決済・QR 決済に続く **第 3 の国内決�
 
 内部台帳は**複式簿記**です。どの操作の後も「全仕訳の通貨別合計 = 0」「ユーザー・加盟店口座の残高 ≥ 0」「口座残高と仕訳行の集計が一致」が成り立ち、`pnpm ledger:verify` で検証できます。
 
+## 公開デモ
+
+| 画面 | URL |
+|---|---|
+| ウォレット / 加盟店ダッシュボード / 管理者 | https://payccount-web.pages.dev （管理者: 「管理者」タブ → ID `kuro`） |
+| サンプル国内EC「サクラ雑貨店」（JPY） | https://payccount-shop-jp.pages.dev |
+| サンプル海外EC「Globe Goods」（USD） | https://payccount-shop-global.pages.dev |
+| API（Cloudflare Workers） | https://payccount-api.kuroatu0130.workers.dev （`/health`、加盟店 API は `/v1/*`） |
+
+一般ユーザーはメールアドレスを入力し、届いたメールの「ログイン」リンクでログインします（Supabase Auth）。デプロイ手順は [docs/deploy.md](docs/deploy.md)。
+
 ## スクリーンショット
 
 | ウォレット | 銀行振込チャージ | 両替 |
