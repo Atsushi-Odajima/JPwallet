@@ -122,7 +122,7 @@ create or replace function topup_card(
   p_failure_reason  text default null,
   p_idempotency_key text default null
 ) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_topup topups%rowtype;
   v_journal_id uuid;
@@ -178,7 +178,7 @@ end $$;
 
 create or replace function list_topups(p_user_id uuid, p_limit int default 20, p_starting_after text default null)
 returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_limit int := least(greatest(coalesce(p_limit, 20), 1), 100);
   v_cursor topups%rowtype;
@@ -205,7 +205,7 @@ end $$;
 
 -- ───────────────────────── 模擬振込先の発行 ─────────────────────────
 create or replace function issue_virtual_bank_account(p_user_id uuid) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_va virtual_bank_accounts%rowtype;
   v_holder text;
@@ -242,7 +242,7 @@ begin
 end $$;
 
 create or replace function get_virtual_bank_account_by_id(p_id uuid) returns jsonb
-language sql security definer set search_path = public as $$
+language sql security definer set search_path = public, extensions as $$
   select virtual_bank_account_json(v.*) from virtual_bank_accounts v where v.id = p_id
 $$;
 
@@ -260,7 +260,7 @@ create or replace function process_bank_deposit(
   p_payer_name     text default null,
   p_external_ref   text default null
 ) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_ref     text := coalesce(nullif(p_external_ref, ''), 'dep_' || encode(gen_random_bytes(8), 'hex'));
   v_existing bank_deposit_notifications%rowtype;
@@ -339,7 +339,7 @@ end $$;
 
 -- ユーザーの振込先に届いた入金通知一覧
 create or replace function list_bank_deposits(p_user_id uuid, p_limit int default 20) returns jsonb
-language sql security definer set search_path = public as $$
+language sql security definer set search_path = public, extensions as $$
   select jsonb_build_object('data', coalesce((
     select jsonb_agg(bank_deposit_notification_json(n.*) order by n.received_at desc)
     from (

@@ -6,7 +6,7 @@ set client_min_messages = warning;
 
 -- 口座の持ち主を表示用に解決する
 create or replace function account_owner_label(a accounts) returns text
-language sql stable set search_path = public as $$
+language sql stable set search_path = public, extensions as $$
   select case a.owner_type
     when 'system' then 'system:' || a.system_code
     when 'user' then coalesce((select coalesce(display_name, email) from profiles where user_id = a.owner_id), a.owner_id::text)
@@ -16,7 +16,7 @@ $$;
 
 -- 概要
 create or replace function admin_overview() returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 begin
   return jsonb_build_object(
     'counts', jsonb_build_object(
@@ -53,7 +53,7 @@ end $$;
 
 -- ユーザー一覧（残高付き）
 create or replace function admin_list_users(p_limit int default 50, p_search text default null) returns jsonb
-language sql security definer set search_path = public as $$
+language sql security definer set search_path = public, extensions as $$
   select jsonb_build_object('data', coalesce((
     select jsonb_agg(jsonb_build_object(
       'user_id', p.user_id, 'email', p.email, 'display_name', p.display_name, 'role', p.role, 'country', p.country, 'created_at', p.created_at,
@@ -72,7 +72,7 @@ $$;
 
 -- ユーザー詳細
 create or replace function admin_get_user(p_user_id uuid) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 begin
   if not exists (select 1 from profiles where user_id = p_user_id) then perform app_error('not_found', 'ユーザーが見つかりません'); end if;
   return jsonb_build_object(
@@ -86,7 +86,7 @@ end $$;
 
 -- 仕訳ブラウザ（行に口座の持ち主を付ける）
 create or replace function admin_list_journals(p_limit int default 20, p_starting_after text default null, p_type text default null) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_limit int := least(greatest(coalesce(p_limit, 20), 1), 100);
   v_cursor journal_entries%rowtype;
@@ -123,7 +123,7 @@ end $$;
 
 -- 全口座
 create or replace function admin_list_accounts() returns jsonb
-language sql security definer set search_path = public as $$
+language sql security definer set search_path = public, extensions as $$
   select jsonb_build_object('data', coalesce((
     select jsonb_agg(jsonb_build_object(
       'id', a.id, 'owner_type', a.owner_type, 'owner_id', a.owner_id, 'system_code', a.system_code, 'owner', account_owner_label(a.*),
@@ -135,7 +135,7 @@ $$;
 
 -- 全決済
 create or replace function admin_list_payments(p_limit int default 50, p_starting_after text default null) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_limit int := least(greatest(coalesce(p_limit, 50), 1), 200);
   v_cursor payments%rowtype;
@@ -161,7 +161,7 @@ end $$;
 
 -- Webhook 配信（全加盟店）
 create or replace function admin_list_webhook_deliveries(p_limit int default 50, p_status text default null) returns jsonb
-language sql security definer set search_path = public as $$
+language sql security definer set search_path = public, extensions as $$
   select jsonb_build_object('data', coalesce((
     select jsonb_agg((webhook_delivery_json(d.*) || jsonb_build_object(
       'merchant_id', d.merchant_id,
@@ -177,7 +177,7 @@ $$;
 
 -- 監査ログ
 create or replace function admin_list_audit_logs(p_limit int default 100) returns jsonb
-language sql security definer set search_path = public as $$
+language sql security definer set search_path = public, extensions as $$
   select jsonb_build_object('data', coalesce((
     select jsonb_agg(jsonb_build_object('id', l.id, 'actor_type', l.actor_type, 'actor_id', l.actor_id, 'action', l.action,
                                         'target_type', l.target_type, 'target_id', l.target_id, 'metadata', l.metadata, 'created_at', l.created_at)
@@ -188,7 +188,7 @@ $$;
 
 -- 全 Checkout Session
 create or replace function admin_list_checkout_sessions(p_limit int default 50) returns jsonb
-language sql security definer set search_path = public as $$
+language sql security definer set search_path = public, extensions as $$
   select jsonb_build_object('data', coalesce((
     select jsonb_agg((checkout_session_json(s.*, null) || jsonb_build_object('merchant_name', (select name from merchants where id = s.merchant_id))) order by s.created_at desc)
     from (select * from checkout_sessions order by created_at desc limit least(greatest(coalesce(p_limit, 50), 1), 200)) s

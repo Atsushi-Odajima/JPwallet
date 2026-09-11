@@ -37,7 +37,7 @@ language sql immutable as $$
 $$;
 
 create or replace function list_point_campaigns(p_active_only boolean default true) returns jsonb
-language sql security definer set search_path = public as $$
+language sql security definer set search_path = public, extensions as $$
   select jsonb_build_object('data', coalesce((
     select jsonb_agg(point_campaign_json(c.*) order by c.min_amount, c.bonus_rate desc)
     from point_campaigns c
@@ -47,7 +47,7 @@ $$;
 
 create or replace function create_point_campaign(p_name text, p_bonus_rate numeric, p_min_amount numeric, p_active_from timestamptz, p_active_to timestamptz)
 returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_c point_campaigns%rowtype;
 begin
@@ -62,7 +62,7 @@ end $$;
 
 -- 金額に対して最も有利なキャンペーンを選ぶ
 create or replace function pick_point_campaign(p_amount numeric) returns point_campaigns
-language sql stable set search_path = public as $$
+language sql stable set search_path = public, extensions as $$
   select c.* from point_campaigns c
   where c.active_from <= now() and c.active_to >= now() and c.min_amount <= p_amount
   order by c.bonus_rate desc, c.min_amount desc
@@ -104,7 +104,7 @@ $$;
 create or replace function post_points_issue_journal(
   p_purchase point_purchases, p_funding_source jsonb, p_idempotency_key text
 ) returns uuid
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 begin
   return post_journal(
     'points_purchase',
@@ -131,7 +131,7 @@ create or replace function purchase_points(
   p_card_last4      text default null,
   p_idempotency_key text default null
 ) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_campaign point_campaigns;
   v_bonus numeric := 0;
@@ -198,7 +198,7 @@ begin
 end $$;
 
 create or replace function list_point_purchases(p_user_id uuid, p_limit int default 20) returns jsonb
-language sql security definer set search_path = public as $$
+language sql security definer set search_path = public, extensions as $$
   select jsonb_build_object('data', coalesce((
     select jsonb_agg(point_purchase_json(p.*) order by p.created_at desc)
     from (select * from point_purchases where user_id = p_user_id order by created_at desc limit least(greatest(coalesce(p_limit, 20), 1), 100)) p
@@ -216,7 +216,7 @@ create or replace function process_bank_deposit(
   p_external_ref   text default null,
   p_reference      text default null
 ) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_ref     text := coalesce(nullif(p_external_ref, ''), 'dep_' || encode(gen_random_bytes(8), 'hex'));
   v_existing bank_deposit_notifications%rowtype;

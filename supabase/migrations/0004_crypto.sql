@@ -98,7 +98,7 @@ $$;
 
 -- ───────────────────────── 価格 ─────────────────────────
 create or replace function get_crypto_prices() returns jsonb
-language plpgsql stable security definer set search_path = public as $$
+language plpgsql stable security definer set search_path = public, extensions as $$
 declare
   v_spread int := cfg_int('crypto_spread_bps', 100);
   v_btc numeric := get_rate('BTC', 'JPY');
@@ -129,7 +129,7 @@ create or replace function create_crypto_order(
   p_asset_amount   numeric default null,
   p_quote_amount   numeric default null
 ) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_asset currencies%rowtype;
   v_mid numeric;
@@ -210,7 +210,7 @@ begin
 end $$;
 
 create or replace function list_crypto_orders(p_user_id uuid, p_limit int default 20) returns jsonb
-language sql security definer set search_path = public as $$
+language sql security definer set search_path = public, extensions as $$
   select jsonb_build_object('data', coalesce((
     select jsonb_agg(crypto_order_json(o.*) order by o.created_at desc)
     from (select * from crypto_orders where user_id = p_user_id order by created_at desc limit least(greatest(coalesce(p_limit, 20), 1), 100)) o
@@ -220,7 +220,7 @@ $$;
 -- ───────────────────────── 模擬入金アドレス ─────────────────────────
 -- ユーザー × 資産ごとに決定的な偽アドレスを生成して保存する
 create or replace function get_crypto_deposit_address(p_user_id uuid, p_asset text) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_addr text;
   v_hash text;
@@ -242,7 +242,7 @@ end $$;
 -- 模擬入金（/mock/crypto/deposit）: user asset + / crypto_custody asset -
 create or replace function process_crypto_deposit(p_asset text, p_to_address text, p_amount numeric, p_tx_hash text default null, p_from_address text default null)
 returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_user uuid;
   v_hash text := coalesce(nullif(p_tx_hash, ''), case when p_asset = 'ETH' then '0x' else '' end || encode(gen_random_bytes(32), 'hex'));
@@ -284,7 +284,7 @@ begin
 end $$;
 
 create or replace function list_crypto_deposits(p_user_id uuid, p_limit int default 20) returns jsonb
-language sql security definer set search_path = public as $$
+language sql security definer set search_path = public, extensions as $$
   select jsonb_build_object('data', coalesce((
     select jsonb_agg(crypto_deposit_json(d.*) order by d.created_at desc)
     from (select * from crypto_deposits where user_id = p_user_id order by created_at desc limit least(greatest(coalesce(p_limit, 20), 1), 100)) d
@@ -294,7 +294,7 @@ $$;
 -- ───────────────────────── 模擬出金 ─────────────────────────
 -- TODO(real): 実際のブロックチェーン送金はスコープ外。fake_tx_hash を返すだけ
 create or replace function create_crypto_withdrawal(p_user_id uuid, p_asset text, p_amount numeric, p_to_address text) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_w crypto_withdrawals%rowtype;
   v_hash text;
@@ -338,7 +338,7 @@ begin
 end $$;
 
 create or replace function list_crypto_withdrawals(p_user_id uuid, p_limit int default 20) returns jsonb
-language sql security definer set search_path = public as $$
+language sql security definer set search_path = public, extensions as $$
   select jsonb_build_object('data', coalesce((
     select jsonb_agg(crypto_withdrawal_json(w.*) order by w.created_at desc)
     from (select * from crypto_withdrawals where user_id = p_user_id order by created_at desc limit least(greatest(coalesce(p_limit, 20), 1), 100)) w

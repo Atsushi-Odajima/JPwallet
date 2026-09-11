@@ -11,6 +11,9 @@ declare
   v_email    text := 'kuro@payccount.demo';
   v_password text := 'atusi0130';
 begin
+  -- Supabase では pgcrypto（crypt / gen_salt）が extensions スキーマにあるため検索パスに加える（ローカルでは無視される）
+  perform set_config('search_path', 'public, extensions', true);
+
   if to_regclass('auth.identities') is not null then
     -- Supabase（GoTrue）環境
     execute format($sql$

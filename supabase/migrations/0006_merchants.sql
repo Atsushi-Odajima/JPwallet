@@ -182,7 +182,7 @@ create index if not exists audit_logs_created_idx on audit_logs (created_at desc
 
 -- ───────────────────────── JSON ─────────────────────────
 create or replace function merchant_json(m merchants) returns jsonb
-language sql stable set search_path = public as $$
+language sql stable set search_path = public, extensions as $$
   select jsonb_build_object(
     'id', m.id, 'name', m.name, 'country', m.country, 'settlement_currency', m.settlement_currency,
     'owner_user_id', m.owner_user_id, 'website_url', m.website_url,
@@ -243,7 +243,7 @@ language sql immutable as $$
 $$;
 
 create or replace function webhook_delivery_json(d webhook_deliveries) returns jsonb
-language sql stable set search_path = public as $$
+language sql stable set search_path = public, extensions as $$
   select jsonb_build_object(
     'id', d.id, 'event_id', d.event_id, 'endpoint_id', d.endpoint_id,
     'url', (select url from webhook_endpoints where id = d.endpoint_id),
@@ -254,7 +254,7 @@ language sql stable set search_path = public as $$
 $$;
 
 create or replace function webhook_event_json(e webhook_events, p_with_deliveries boolean default true) returns jsonb
-language sql stable set search_path = public as $$
+language sql stable set search_path = public, extensions as $$
   select jsonb_build_object(
     'id', e.id, 'object', 'event', 'type', e.type, 'created', extract(epoch from e.created_at)::bigint,
     'created_at', e.created_at, 'demo', true, 'data', jsonb_build_object('object', e.payload)
@@ -265,7 +265,7 @@ $$;
 
 -- ───────────────────────── 加盟店 CRUD ─────────────────────────
 create or replace function assert_merchant_owner(p_merchant_id uuid, p_user_id uuid) returns merchants
-language plpgsql stable security definer set search_path = public as $$
+language plpgsql stable security definer set search_path = public, extensions as $$
 declare
   v_m merchants%rowtype;
   v_role text;
@@ -283,7 +283,7 @@ end $$;
 
 create or replace function create_merchant(p_owner_user_id uuid, p_name text, p_country text, p_settlement_currency text, p_website_url text default null)
 returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_m merchants%rowtype;
 begin
@@ -301,20 +301,20 @@ begin
 end $$;
 
 create or replace function list_my_merchants(p_user_id uuid) returns jsonb
-language sql security definer set search_path = public as $$
+language sql security definer set search_path = public, extensions as $$
   select jsonb_build_object('data', coalesce((
     select jsonb_agg(merchant_json(m.*) order by m.created_at) from merchants m where m.owner_user_id = p_user_id
   ), '[]'::jsonb))
 $$;
 
 create or replace function get_merchant(p_merchant_id uuid, p_user_id uuid) returns jsonb
-language sql security definer set search_path = public as $$
+language sql security definer set search_path = public, extensions as $$
   select merchant_json(assert_merchant_owner(p_merchant_id, p_user_id))
 $$;
 
 create or replace function update_merchant(p_merchant_id uuid, p_user_id uuid, p_name text, p_country text, p_settlement_currency text, p_website_url text)
 returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_m merchants%rowtype := assert_merchant_owner(p_merchant_id, p_user_id);
 begin
@@ -339,7 +339,7 @@ end $$;
 -- ───────────────────────── APIキー ─────────────────────────
 -- 平文キーは発行時に一度だけ返す。DB には SHA-256 のみ保存
 create or replace function create_api_key(p_merchant_id uuid, p_user_id uuid) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_key text := 'sk_test_' || encode(gen_random_bytes(24), 'hex');
   v_k api_keys%rowtype;
@@ -354,7 +354,7 @@ begin
 end $$;
 
 create or replace function list_api_keys(p_merchant_id uuid, p_user_id uuid) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 begin
   perform assert_merchant_owner(p_merchant_id, p_user_id);
   return jsonb_build_object('data', coalesce((
@@ -363,7 +363,7 @@ begin
 end $$;
 
 create or replace function revoke_api_key(p_merchant_id uuid, p_user_id uuid, p_key_id uuid) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_k api_keys%rowtype;
 begin
@@ -377,7 +377,7 @@ end $$;
 
 -- APIキー認証（ハッシュで照合）
 create or replace function authenticate_api_key(p_key_hash text) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_k api_keys%rowtype;
   v_m merchants%rowtype;
@@ -393,7 +393,7 @@ end $$;
 
 -- レート制限（固定ウィンドウ）: インクリメントして現在のカウントを返す
 create or replace function bump_rate_limit(p_api_key_id uuid, p_window_start timestamptz) returns int
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_count int;
 begin
@@ -407,26 +407,26 @@ end $$;
 
 -- 冪等キー
 create or replace function idempotency_lookup(p_merchant_id uuid, p_key text) returns jsonb
-language sql security definer set search_path = public as $$
+language sql security definer set search_path = public, extensions as $$
   select jsonb_build_object('request_hash', k.request_hash, 'status_code', k.status_code, 'response_body', k.response_body)
   from idempotency_keys k where k.merchant_id = p_merchant_id and k.key = p_key
 $$;
 
 create or replace function idempotency_store(p_merchant_id uuid, p_key text, p_request_hash text, p_status_code int, p_response_body jsonb) returns void
-language sql security definer set search_path = public as $$
+language sql security definer set search_path = public, extensions as $$
   insert into idempotency_keys (merchant_id, key, request_hash, status_code, response_body)
   values (p_merchant_id, p_key, p_request_hash, p_status_code, p_response_body)
   on conflict (merchant_id, key) do nothing
 $$;
 
 create or replace function log_api_request(p_merchant_id uuid, p_api_key_id uuid, p_method text, p_path text, p_status_code int, p_duration_ms int, p_request_id text) returns void
-language sql security definer set search_path = public as $$
+language sql security definer set search_path = public, extensions as $$
   insert into api_request_logs (merchant_id, api_key_id, method, path, status_code, duration_ms, request_id)
   values (p_merchant_id, p_api_key_id, p_method, p_path, p_status_code, p_duration_ms, p_request_id)
 $$;
 
 create or replace function list_api_request_logs(p_merchant_id uuid, p_user_id uuid, p_limit int default 50) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 begin
   perform assert_merchant_owner(p_merchant_id, p_user_id);
   return jsonb_build_object('data', coalesce((
@@ -439,7 +439,7 @@ end $$;
 
 -- ───────────────────────── Webhook キュー ─────────────────────────
 create or replace function enqueue_webhook_event(p_merchant_id uuid, p_type text, p_payload jsonb) returns text
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_event_id text := gen_prefixed_id('evt_');
   v_e webhook_endpoints%rowtype;
@@ -454,7 +454,7 @@ begin
 end $$;
 
 create or replace function create_webhook_endpoint(p_merchant_id uuid, p_url text, p_events text[] default null) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_e webhook_endpoints%rowtype;
   v_secret text := 'whsec_' || encode(gen_random_bytes(24), 'hex');
@@ -474,14 +474,14 @@ begin
 end $$;
 
 create or replace function list_webhook_endpoints(p_merchant_id uuid) returns jsonb
-language sql security definer set search_path = public as $$
+language sql security definer set search_path = public, extensions as $$
   select jsonb_build_object('data', coalesce((
     select jsonb_agg(webhook_endpoint_json(e.*) order by e.created_at) from webhook_endpoints e where e.merchant_id = p_merchant_id and e.deleted_at is null
   ), '[]'::jsonb), 'has_more', false)
 $$;
 
 create or replace function delete_webhook_endpoint(p_merchant_id uuid, p_endpoint_id text) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_e webhook_endpoints%rowtype;
 begin
@@ -492,7 +492,7 @@ begin
 end $$;
 
 create or replace function list_webhook_events(p_merchant_id uuid, p_limit int default 20, p_starting_after text default null, p_type text default null) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_limit int := least(greatest(coalesce(p_limit, 20), 1), 100);
   v_cursor webhook_events%rowtype;
@@ -519,7 +519,7 @@ begin
 end $$;
 
 create or replace function get_webhook_event(p_merchant_id uuid, p_event_id text) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_e webhook_events%rowtype;
 begin
@@ -530,7 +530,7 @@ end $$;
 
 -- 再送: 有効なエンドポイントすべてに新しい配信を作る（履歴は残す）
 create or replace function resend_webhook_event(p_merchant_id uuid, p_event_id text) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_e webhook_events%rowtype;
   v_ep webhook_endpoints%rowtype;
@@ -550,7 +550,7 @@ end $$;
 
 -- 配信ワーカー: 期限が来た配信を取り出して in_flight にする（skip locked で多重実行に耐える）
 create or replace function claim_webhook_deliveries(p_limit int default 20) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_rows jsonb;
 begin
@@ -580,7 +580,7 @@ end $$;
 
 -- 配信結果の記録。失敗時は 1分, 5分, 30分, 2時間, 12時間 で最大 5 回
 create or replace function record_webhook_delivery(p_delivery_id text, p_success boolean, p_status_code int, p_response_body text, p_error text) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_d webhook_deliveries%rowtype;
   v_attempts int;
@@ -611,7 +611,7 @@ end $$;
 
 -- 取り残された in_flight（ワーカー落ち）を pending に戻す
 create or replace function requeue_stale_webhook_deliveries() returns int
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_n int;
 begin
@@ -635,7 +635,7 @@ create or replace function create_checkout_session(
   p_idempotency_key  text default null,
   p_app_url          text default null
 ) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_m merchants%rowtype;
   v_s checkout_sessions%rowtype;
@@ -672,7 +672,7 @@ end $$;
 
 -- 期限切れなら expired にして Webhook を出す（遅延評価）
 create or replace function touch_checkout_session(p_session checkout_sessions) returns checkout_sessions
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_s checkout_sessions%rowtype := p_session;
 begin
@@ -686,7 +686,7 @@ begin
 end $$;
 
 create or replace function get_checkout_session(p_session_id text, p_merchant_id uuid default null, p_app_url text default null) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_s checkout_sessions%rowtype;
 begin
@@ -697,7 +697,7 @@ begin
 end $$;
 
 create or replace function expire_checkout_session(p_session_id text, p_merchant_id uuid, p_app_url text default null) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_s checkout_sessions%rowtype;
 begin
@@ -712,7 +712,7 @@ begin
 end $$;
 
 create or replace function cancel_checkout_session_by_user(p_session_id text, p_user_id uuid, p_app_url text default null) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_s checkout_sessions%rowtype;
 begin
@@ -728,7 +728,7 @@ end $$;
 
 -- Cron: 期限切れ Session の掃除
 create or replace function expire_checkout_sessions() returns int
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_s checkout_sessions%rowtype;
   v_n int := 0;
@@ -745,7 +745,7 @@ end $$;
 --   PT は JPY と等価（スプレッドなし）。異通貨はミッドレート × (1 - スプレッド) の実効レート
 --   戻り値: { source_amount, rate, mid_rate, spread_bps, pool }
 create or replace function compute_source_amount(p_settlement text, p_amount numeric, p_source text) returns jsonb
-language plpgsql stable set search_path = public as $$
+language plpgsql stable set search_path = public, extensions as $$
 declare
   v_eff_source text := case when p_source = 'PT' then 'JPY' else p_source end;
   v_kind text;
@@ -774,7 +774,7 @@ end $$;
 
 -- Checkout ページ用: Session + 加盟店 + 支払ソースごとの必要額と残高
 create or replace function get_checkout_view(p_session_id text, p_user_id uuid, p_app_url text default null) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_s checkout_sessions%rowtype;
   v_m merchants%rowtype;
@@ -823,7 +823,7 @@ end $$;
 
 -- ───────────────────────── 決済実行（見せ場） ─────────────────────────
 create or replace function execute_payment(p_session_id text, p_user_id uuid, p_source_currency text, p_app_url text default null) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_s checkout_sessions%rowtype;
   v_m merchants%rowtype;
@@ -937,7 +937,7 @@ end $$;
 -- 手数料は返金しない（config.refund_returns_fee = true で切替）。部分返金は累計が元金額まで。
 create or replace function refund_payment(p_payment_id text, p_merchant_id uuid, p_amount numeric default null, p_reason text default null, p_idempotency_key text default null)
 returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_p payments%rowtype;
   v_r refunds%rowtype;
@@ -1052,7 +1052,7 @@ end $$;
 
 -- ───────────────────────── 参照 RPC（加盟店） ─────────────────────────
 create or replace function list_payments(p_merchant_id uuid, p_limit int default 20, p_starting_after text default null, p_status text default null) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_limit int := least(greatest(coalesce(p_limit, 20), 1), 100);
   v_cursor payments%rowtype;
@@ -1079,7 +1079,7 @@ begin
 end $$;
 
 create or replace function get_payment(p_payment_id text, p_merchant_id uuid) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_p payments%rowtype;
 begin
@@ -1090,7 +1090,7 @@ begin
 end $$;
 
 create or replace function get_refund(p_refund_id text, p_merchant_id uuid) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_r refunds%rowtype;
 begin
@@ -1100,7 +1100,7 @@ begin
 end $$;
 
 create or replace function get_merchant_balance(p_merchant_id uuid) returns jsonb
-language sql security definer set search_path = public as $$
+language sql security definer set search_path = public, extensions as $$
   select jsonb_build_object(
     'object', 'balance',
     'available', coalesce((select jsonb_agg(jsonb_build_object('currency', a.currency, 'amount', a.balance::text) order by a.currency)
@@ -1111,7 +1111,7 @@ language sql security definer set search_path = public as $$
 $$;
 
 create or replace function list_merchant_balance_transactions(p_merchant_id uuid, p_limit int default 20, p_starting_after text default null) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_limit int := least(greatest(coalesce(p_limit, 20), 1), 100);
   v_cursor bigint;
@@ -1142,7 +1142,7 @@ end $$;
 
 -- ダッシュボードのサマリ
 create or replace function get_merchant_dashboard(p_merchant_id uuid, p_user_id uuid) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_m merchants%rowtype := assert_merchant_owner(p_merchant_id, p_user_id);
 begin
@@ -1171,7 +1171,7 @@ end $$;
 
 -- 管理者向け: 全加盟店
 create or replace function admin_list_merchants(p_limit int default 100) returns jsonb
-language sql security definer set search_path = public as $$
+language sql security definer set search_path = public, extensions as $$
   select jsonb_build_object('data', coalesce((
     select jsonb_agg(merchant_json(m.*) || jsonb_build_object(
              'owner_email', (select email from profiles where user_id = m.owner_user_id),
@@ -1184,7 +1184,7 @@ $$;
 
 -- get_me に merchant_ids を含める
 create or replace function get_me(p_user_id uuid, p_email text default null) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_profile profiles%rowtype;
   v_wallets jsonb;

@@ -40,12 +40,12 @@ insert into config (key, value, description) values
 on conflict (key) do nothing;
 
 create or replace function cfg(p_key text) returns text
-language sql stable set search_path = public as $$
+language sql stable set search_path = public, extensions as $$
   select value from config where key = p_key
 $$;
 
 create or replace function cfg_int(p_key text, p_default int) returns int
-language sql stable set search_path = public as $$
+language sql stable set search_path = public, extensions as $$
   select coalesce((select value from config where key = p_key)::int, p_default)
 $$;
 
@@ -79,7 +79,7 @@ create table if not exists profiles (
 
 -- auth.users 作成時にプロフィールを自動作成
 create or replace function handle_new_auth_user() returns trigger
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 begin
   insert into profiles (user_id, email, display_name)
   values (
@@ -105,7 +105,7 @@ create table if not exists admin_credentials (
 );
 
 create or replace function admin_login(p_login_id text, p_password text) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_cred admin_credentials%rowtype;
   v_profile profiles%rowtype;
@@ -161,7 +161,7 @@ create index if not exists ledger_lines_account_idx on ledger_lines (account_id,
 create or replace function ensure_account(
   p_owner_type text, p_owner_id uuid, p_system_code text, p_currency text
 ) returns uuid
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_id uuid;
 begin
@@ -205,7 +205,7 @@ create or replace function post_journal(
   p_reference_id    text  default null,
   p_metadata        jsonb default '{}'::jsonb
 ) returns uuid
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_journal_id uuid;
   v_line       jsonb;
@@ -320,7 +320,7 @@ end $$;
 
 -- 台帳整合性チェック（pnpm ledger:verify と管理画面で使用）
 create or replace function ledger_verify() returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_unbalanced jsonb;
   v_negative   jsonb;
@@ -382,7 +382,7 @@ create index if not exists notifications_user_idx on notifications (user_id, cre
 
 -- JPY 換算（Phase 2 でレート対応に置き換える。ここでは JPY/PT のみ 1:1）
 create or replace function convert_to_jpy(p_currency text, p_amount numeric) returns numeric
-language plpgsql stable set search_path = public as $$
+language plpgsql stable set search_path = public, extensions as $$
 begin
   if p_currency in ('JPY', 'PT') then
     return p_amount;
@@ -405,7 +405,7 @@ $$;
 -- プロフィール取得（なければ作成）
 create or replace function ensure_profile(p_user_id uuid, p_email text default null, p_display_name text default null)
 returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_profile profiles%rowtype;
 begin
@@ -419,7 +419,7 @@ end $$;
 
 -- 自分の情報 + 全通貨残高
 create or replace function get_me(p_user_id uuid, p_email text default null) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_profile profiles%rowtype;
   v_wallets jsonb;
@@ -451,7 +451,7 @@ begin
 end $$;
 
 create or replace function update_profile(p_user_id uuid, p_display_name text, p_country text) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_profile profiles%rowtype;
 begin
@@ -474,7 +474,7 @@ create or replace function list_transactions(
   p_starting_after text default null,
   p_type           text default null
 ) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_limit int := least(greatest(coalesce(p_limit, 20), 1), 100);
   v_cursor_created timestamptz;
@@ -530,7 +530,7 @@ end $$;
 -- 通知
 create or replace function list_notifications(p_user_id uuid, p_limit int default 20, p_unread_only boolean default false)
 returns jsonb
-language sql security definer set search_path = public as $$
+language sql security definer set search_path = public, extensions as $$
   select jsonb_build_object(
     'data', coalesce((
       select jsonb_agg(to_jsonb(n) order by n.created_at desc)
@@ -548,7 +548,7 @@ $$;
 
 drop function if exists mark_notifications_read(uuid, uuid[]);
 create or replace function mark_notifications_read(p_user_id uuid, p_ids text[] default null) returns int
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_n int;
 begin

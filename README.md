@@ -141,6 +141,8 @@ API テストはローカル Postgres の `payccount_test` を作り直して実
 
 ## デプロイ（無料枠）
 
+一括デプロイは `scripts/deploy/deploy.sh all`（認証情報は環境変数で渡す）。必要な値の取得場所、Claude Code クラウド環境のネットワーク設定、各工程の内容は [docs/deploy.md](docs/deploy.md) を参照。
+
 | 対象 | 手順 |
 |---|---|
 | API（Workers） | `cd apps/api && wrangler deploy`。`[triggers] crons = ["* * * * *"]` で Webhook 再送・期限切れ処理・live レート取得が動く。秘密は `wrangler secret put SUPABASE_SERVICE_ROLE_KEY` など |

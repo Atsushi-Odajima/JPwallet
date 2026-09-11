@@ -36,7 +36,7 @@ $$;
 
 -- レートの upsert（モック / live プロバイダから呼ぶ）
 create or replace function set_rate(p_base text, p_quote text, p_rate numeric, p_source text default 'mock') returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_r rates%rowtype;
 begin
@@ -55,7 +55,7 @@ end $$;
 
 -- シード値に戻す（RATES_PROVIDER=mock の /mock/rates/refresh）。Phase 3 でクリプトも追加
 create or replace function reseed_rates() returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_rows jsonb;
 begin
@@ -71,7 +71,7 @@ end $$;
 
 -- ミッドレート base→quote（1 base = ? quote）。PT は JPY と等価
 create or replace function get_rate(p_base text, p_quote text) returns numeric
-language plpgsql stable set search_path = public as $$
+language plpgsql stable set search_path = public, extensions as $$
 declare
   v_base text := case when p_base = 'PT' then 'JPY' else p_base end;
   v_quote text := case when p_quote = 'PT' then 'JPY' else p_quote end;
@@ -99,7 +99,7 @@ begin
 end $$;
 
 create or replace function get_rate_json(p_base text, p_quote text) returns jsonb
-language plpgsql stable set search_path = public as $$
+language plpgsql stable set search_path = public, extensions as $$
 declare
   v_rate numeric;
   v_src text;
@@ -117,13 +117,13 @@ begin
 end $$;
 
 create or replace function list_rates() returns jsonb
-language sql stable security definer set search_path = public as $$
+language sql stable security definer set search_path = public, extensions as $$
   select jsonb_build_object('data', coalesce((select jsonb_agg(rate_json(r.*) order by r.base) from rates r), '[]'::jsonb))
 $$;
 
 -- 最小単位の換算: from_minor → to_minor（p_rate は 1 from = p_rate to）。切り捨て
 create or replace function convert_minor(p_amount numeric, p_from text, p_to text, p_rate numeric) returns numeric
-language plpgsql stable set search_path = public as $$
+language plpgsql stable set search_path = public, extensions as $$
 declare
   v_from_dec int;
   v_to_dec int;
@@ -137,7 +137,7 @@ end $$;
 
 -- 切り上げ版（ユーザーが「支払う側」の必要額を出すとき）
 create or replace function convert_minor_ceil(p_amount numeric, p_from text, p_to text, p_rate numeric) returns numeric
-language plpgsql stable set search_path = public as $$
+language plpgsql stable set search_path = public, extensions as $$
 declare
   v_from_dec int;
   v_to_dec int;
@@ -157,7 +157,7 @@ end $$;
 
 -- 「価格で割る」版: from_minor → to_minor（p_price は 1 to = p_price from）。切り捨て / 切り上げ
 create or replace function convert_minor_div(p_amount numeric, p_from text, p_to text, p_price numeric) returns numeric
-language plpgsql stable set search_path = public as $$
+language plpgsql stable set search_path = public, extensions as $$
 declare
   v_from_dec int;
   v_to_dec int;
@@ -169,7 +169,7 @@ begin
 end $$;
 
 create or replace function convert_minor_div_ceil(p_amount numeric, p_from text, p_to text, p_price numeric) returns numeric
-language plpgsql stable set search_path = public as $$
+language plpgsql stable set search_path = public, extensions as $$
 declare
   v_from_dec int;
   v_to_dec int;
@@ -189,7 +189,7 @@ end $$;
 
 -- JPY 換算（Phase 0 の暫定実装を置き換え）
 create or replace function convert_to_jpy(p_currency text, p_amount numeric) returns numeric
-language plpgsql stable set search_path = public as $$
+language plpgsql stable set search_path = public, extensions as $$
 declare
   v_rate numeric;
 begin
@@ -231,7 +231,7 @@ language sql immutable as $$
 $$;
 
 create or replace function create_fx_quote(p_user_id uuid, p_from text, p_to text, p_from_amount numeric) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_from currencies%rowtype;
   v_to currencies%rowtype;
@@ -273,7 +273,7 @@ begin
 end $$;
 
 create or replace function get_fx_quote(p_user_id uuid, p_quote_id text) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_q fx_quotes%rowtype;
 begin
@@ -288,7 +288,7 @@ begin
 end $$;
 
 create or replace function list_fx_quotes(p_user_id uuid, p_limit int default 20) returns jsonb
-language sql security definer set search_path = public as $$
+language sql security definer set search_path = public, extensions as $$
   select jsonb_build_object('data', coalesce((
     select jsonb_agg(fx_quote_json(q.*) order by q.created_at desc)
     from (select * from fx_quotes where user_id = p_user_id order by created_at desc limit least(greatest(coalesce(p_limit, 20), 1), 100)) q
@@ -297,7 +297,7 @@ $$;
 
 -- 両替の確定: user from - / fx_pool from + / fx_pool to - / user to +
 create or replace function execute_fx_quote(p_user_id uuid, p_quote_id text) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_q fx_quotes%rowtype;
   v_journal uuid;
@@ -335,7 +335,7 @@ end $$;
 
 -- 期限切れ Quote の掃除（Cron から）
 create or replace function expire_fx_quotes() returns int
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_n int;
 begin
