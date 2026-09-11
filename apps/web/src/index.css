@@ -1,0 +1,52 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-brand-50: #eef2ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-200: #c7d2fe;
+  --color-brand-300: #a5b4fc;
+  --color-brand-400: #818cf8;
+  --color-brand-500: #4f46e5;
+  --color-brand-600: #3730a3;
+  --color-brand-700: #312e81;
+  --color-brand-800: #1e3a8a;
+  --color-brand-900: #172554;
+  --font-sans: 'Inter', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Markdown（統合ガイド） */
+.prose-docs h1 { @apply text-2xl font-bold mt-8 mb-3; }
+.prose-docs h2 { @apply text-xl font-bold mt-8 mb-3 border-b border-slate-200 pb-1; }
+.prose-docs h3 { @apply text-lg font-semibold mt-6 mb-2; }
+.prose-docs h4 { @apply text-base font-semibold mt-4 mb-1; }
+.prose-docs p { @apply my-2 leading-relaxed; }
+.prose-docs ul { @apply list-disc pl-6 my-2; }
+.prose-docs ol { @apply list-decimal pl-6 my-2; }
+.prose-docs li { @apply my-1; }
+.prose-docs code { @apply font-mono text-[0.85em] bg-slate-100 rounded px-1 py-0.5; }
+.prose-docs pre { @apply bg-slate-900 text-slate-100 rounded-lg p-4 overflow-x-auto my-3 text-sm; }
+.prose-docs pre code { @apply bg-transparent p-0 text-inherit; }
+.prose-docs table { @apply w-full text-sm my-3 border-collapse; }
+.prose-docs th { @apply text-left bg-slate-100 px-2 py-1 border border-slate-200; }
+.prose-docs td { @apply px-2 py-1 border border-slate-200 align-top; }
+.prose-docs a { @apply text-brand-500 underline; }
+.prose-docs blockquote { @apply border-l-4 border-brand-200 pl-3 text-slate-600 my-2; }

@@ -1,0 +1,577 @@
+# アプリ名:payCcount — 日本産オンラインEウォレット（デモ）実装指示書
+
+> このファイルはリポジトリ直下に `CLAUDE.md` として置き、Claude Code に読ませて実装を進めるための仕様書＋フェーズ計画です。
+
+---
+
+## 0. 前提
+
+- **これはデモアプリケーションです。** 実際の資金・暗号資産・カード情報は扱わない。すべての外部決済・為替・ブロックチェーン連携はモック（模擬）で実装する。
+- TOPページフッターに **「これはデモアプリケーションです。」** を表示する。
+- 法規制（資金決済法・暗号資産交換業・為替取引等）への対応は **スコープ外**。ライセンス要否は行わない。
+- テスト用の固定値だけを受け付ける。
+- 目的は **「クレジット決済・QR決済に続く第3の国内決済手段」という構想を、動くプロトタイプとして提示できること**。集客・収益性は評価対象外。設計の正しさ（台帳の整合性、API の使いやすさ、Webhook の信頼性）を優先する。
+
+---
+
+## 1. プロダクト概要
+
+**payCcount** は、日本のユーザー向けオンラインEウォレット。以下を1つのアプリで提供する。
+
+1. **現地通貨（JPY）残高の管理** — チャージ、残高確認、取引履歴
+2. **マルチカレンシー** — JPY / USD / EUR / GBP を保有・両替
+3. **主要クリプト** — BTC / ETH を保有・売買（模擬カストディ）
+4. **ポイント購入** — 決済（模擬カード／模擬銀行振込）でアプリ内ポイントを購入し、決済に使用
+5. **EC 決済 API** — 国内EC・海外ECが API / SDK で接続し、payCcount を決済手段として組み込める
+6. **決済手段としての位置づけ** — 加盟店ダッシュボード、APIキー、Webhook、精算（売上残高）まで含めて「決済ブランド」として成立する形にする
+
+### 1.1 登場人物（ペルソナ）
+
+| 役割 | 説明 |
+|---|---|
+| **ユーザー** | ウォレットアプリ（PWA）を使う日本の消費者 |
+| **加盟店（国内EC）** | 円建てで商品を売る。決済は JPY で精算 |
+| **加盟店（海外EC）** | USD 建てで商品を売る。決済は USD で精算 |
+| **運営（システム）** | 為替プール、クリプト・カストディ、ポイント発行元、手数料収益などのシステム勘定 |
+
+### 1.2 ゴール / ノンゴール
+
+**ゴール**
+- 上記6機能がすべてブラウザ上で一通り動く
+- 加盟店が **APIキー発行 → Checkout Session 作成 → ユーザー決済 → Webhook 受信 → 売上残高反映 → 返金** を実際に体験できる
+- 内部台帳が複式簿記で一貫しており、どの操作の後も「全仕訳の合計 = 0」「ユーザー・加盟店口座の残高 ≥ 0」が成り立つ
+- サンプルEC（国内・海外）が SDK 経由で決済できる
+
+**ノンゴール（作らない）**
+- 本物のカード決済・銀行API・ブロックチェーン接続。あくまでもデモとして入力フォームは作る。
+- 実店舗向け QR 決済（別プロジェクトの領域。ここではオンライン決済に集中）
+
+---
+
+## 2. 技術スタック
+
+既存の開発パターンに合わせる。
+
+| レイヤ | 採用 |
+|---|---|
+| フロント（ウォレット / 加盟店ダッシュボード / Checkout ページ） | React + Vite + TypeScript、PWA、Cloudflare Pages |
+| API | **Hono** on Cloudflare Workers（`wrangler dev` でローカル実行） |
+| DB / 認証 | Supabase（Postgres + Supabase Auth）。台帳の書き込みは **Postgres RPC（plpgsql）** に集約しトランザクションを保証する |
+| SDK | `packages/sdk` — 加盟店向け JS SDK（npm パッケージ形式、ローカル参照） |
+| サンプルEC | React + Vite + Cloudflare Pages Functions（Webhook 受信用）×2 |
+| テスト | Vitest（台帳・API）、Playwright（主要フローの E2E、P1） |
+| 状態管理 / UI | TanStack Query、Tailwind CSS。UI ライブラリは軽量なもの1つに限定 |
+
+無料枠で完結させる。有料サービスや追加 SaaS を入れる場合は先に確認を取ること。
+
+### 2.1 リポジトリ構成（pnpm workspaces）
+
+```
+/
+├── CLAUDE.md                 ← このファイル
+├── apps/
+│   ├── web/                  ← ユーザー向けウォレット PWA + 加盟店ダッシュボード + Checkout ページ
+│   ├── api/                  ← Hono / Cloudflare Workers（内部API + 加盟店向け公開API + Webhook配信）
+│   ├── shop-jp/              ← サンプル国内EC（JPY）
+│   └── shop-global/          ← サンプル海外EC（USD、英語UI）
+├── packages/
+│   ├── sdk/                  ← 加盟店向け JS SDK（@payccount/js）
+│   └── shared/               ← 型定義、通貨ユーティリティ、定数
+├── supabase/
+│   ├── migrations/           ← スキーマ・RPC・シード
+│   └── seed.sql
+├── docs/
+│   ├── api.md                ← 公開API リファレンス（実装から生成 or 手書き）
+│   └── architecture.md
+└── .env.example
+```
+
+---
+
+## 3. 通貨と金額の扱い（全レイヤ共通ルール）
+
+- 金額は **最小単位の整数** で扱う（Stripe と同じ考え方）。DB は `NUMERIC(40,0)`、API/JSON では **文字列** で受け渡す（ETH の wei は JS の Number に収まらないため）。
+- 通貨定義は `currencies` テーブルで管理する。
+
+| code | kind | decimals | 備考 |
+|---|---|---|---|
+| JPY | fiat | 0 | 現地通貨・基軸 |
+| USD | fiat | 2 | |
+| EUR | fiat | 2 | |
+| GBP | fiat | 2 | |
+| BTC | crypto | 8 | 最小単位 satoshi |
+| ETH | crypto | 18 | 最小単位 wei |
+| PT  | points | 0 | 1 PT = 1 JPY 相当。出金不可、加盟店決済にのみ使用可 |
+
+- `packages/shared` に `formatAmount(minor: string, code)` / `parseAmount(display: string, code)` を用意し、フロントは必ずこれを使う。浮動小数点で金額計算をしない（`bigint` または decimal ライブラリ）。
+- レートは `NUMERIC(30,12)` で保存。両替計算は DB 側の RPC で行い、フロントは表示専用。
+
+---
+
+## 4. データモデル（Supabase / Postgres）
+
+### 4.1 台帳（コア）
+
+複式簿記。すべての残高変動は必ず仕訳（journal）を通す。残高テーブルを直接 UPDATE してはならない。
+
+```sql
+-- 勘定口座。ユーザー・加盟店・システムのそれぞれが通貨ごとに1口座持つ
+accounts(
+  id uuid pk,
+  owner_type text check (owner_type in ('user','merchant','system')),
+  owner_id uuid null,            -- system の場合 null
+  system_code text null,         -- 'fx_pool','crypto_custody','points_issuer','fee_revenue','card_clearing','bank_clearing'
+  currency text references currencies(code),
+  balance numeric(40,0) not null default 0,   -- RPC 内でのみ更新（キャッシュ）
+  unique(owner_type, owner_id, system_code, currency)
+)
+
+journal_entries(
+  id uuid pk,
+  type text,                     -- 'topup_card','topup_bank','points_purchase','fx_convert','crypto_buy','crypto_sell','payment','refund','payout','fee'
+  idempotency_key text unique,   -- 冪等キー。同じキーで二重起票しない
+  reference_type text, reference_id uuid,   -- payments.id など
+  metadata jsonb,
+  created_at timestamptz default now()
+)
+
+ledger_lines(
+  id bigserial pk,
+  journal_id uuid references journal_entries(id),
+  account_id uuid references accounts(id),
+  amount numeric(40,0) not null, -- 符号付き。借方+/貸方- ではなく単純に「その口座の増減」
+  currency text not null
+)
+-- 不変条件: 同一 journal_id・同一 currency の amount 合計 = 0
+-- 不変条件: owner_type in ('user','merchant') の accounts.balance >= 0
+```
+
+**RPC `post_journal(p_type, p_idempotency_key, p_lines jsonb, p_reference_type, p_reference_id, p_metadata)`**
+- 1トランザクションで journal_entries / ledger_lines 挿入 + accounts.balance 更新
+- 通貨ごとの合計が 0 でなければ例外
+- user/merchant 口座が負になるなら `insufficient_funds` 例外
+- 同じ idempotency_key が存在すれば既存の journal を返す（エラーにしない）
+
+各業務処理（チャージ、両替、決済…）は **この RPC を呼ぶ専用 RPC**（例 `execute_payment`）として実装し、API 層からは1回の RPC 呼び出しで完結させる。
+
+### 4.2 ユーザー / チャージ / ポイント
+
+```sql
+profiles(user_id pk → auth.users, display_name, country default 'JP', created_at)
+
+topups(id, user_id, method 'card'|'bank_transfer', currency, amount, status 'pending'|'succeeded'|'failed', provider_ref, journal_id, created_at)
+
+virtual_bank_accounts(id, user_id, bank_name, branch_code, account_number, holder_name, created_at)
+bank_deposit_notifications(id, virtual_account_id, amount, payer_name, received_at, processed_at, topup_id)
+  -- 模擬「入金通知」。ダッシュボードの「入金をシミュレート」ボタンで生成される
+
+point_purchases(id, user_id, paid_currency 'JPY', paid_amount, points_granted, bonus_points, payment_method, status, journal_id, created_at)
+point_campaigns(id, name, bonus_rate numeric(6,4), min_amount, active_from, active_to)
+```
+
+### 4.3 為替 / クリプト
+
+```sql
+rates(id, base text, quote text, rate numeric(30,12), source text, fetched_at)
+  -- 例: base='USD', quote='JPY', rate=150.123456
+
+fx_quotes(id, user_id, from_currency, to_currency, from_amount, to_amount, rate, spread_bps int, expires_at, status 'open'|'executed'|'expired', journal_id)
+
+crypto_orders(id, user_id, side 'buy'|'sell', asset 'BTC'|'ETH', quote_currency 'JPY', asset_amount, quote_amount, price, spread_bps, status, journal_id, created_at)
+
+crypto_withdrawals(id, user_id, asset, amount, to_address, fake_tx_hash, status, created_at)
+  -- 模擬。実際には送金しない。fake_tx_hash はランダム生成
+```
+
+### 4.4 加盟店 / 決済 API
+
+```sql
+merchants(id, name, country 'JP'|'US'|..., settlement_currency, owner_user_id, website_url, created_at)
+
+api_keys(id, merchant_id, prefix text, key_hash text, mode 'test', last_used_at, revoked_at, created_at)
+  -- 平文キーは発行時に一度だけ返す。DB には SHA-256 ハッシュのみ
+
+checkout_sessions(id 'cs_...', merchant_id, amount, currency, order_id, description, success_url, cancel_url,
+  metadata jsonb, status 'open'|'completed'|'expired'|'canceled', expires_at, payment_id, created_at)
+
+payments(id 'pay_...', merchant_id, session_id, payer_user_id,
+  source_currency, source_amount,          -- ユーザーが払った通貨・額（JPY/PT/USD/BTC…）
+  settlement_currency, settlement_amount,  -- 加盟店が受け取る通貨・額
+  fx_rate numeric(30,12), fee_amount, fee_bps int,
+  status 'succeeded'|'refunded'|'partially_refunded',
+  refunded_amount default 0, journal_id, created_at)
+
+refunds(id 're_...', payment_id, amount, reason, status, journal_id, created_at)
+
+webhook_endpoints(id, merchant_id, url, secret, enabled, created_at)
+webhook_events(id 'evt_...', merchant_id, type, payload jsonb, status 'pending'|'delivered'|'failed',
+  attempts int, next_retry_at, last_status_code, last_response_body, created_at)
+
+api_request_logs(id, merchant_id, method, path, status_code, duration_ms, created_at)
+audit_logs(id, actor_type, actor_id, action, target_type, target_id, metadata, created_at)
+```
+
+RLS: ユーザーは自分の profiles / accounts / topups / quotes / orders のみ閲覧可。加盟店データはオーナーのみ。API（Workers）は service role で接続し、認可は API 層で行う。
+
+---
+
+## 5. API 仕様
+
+API は 3 系統に分かれる。すべて JSON。
+
+| 系統 | ベースパス | 認証 |
+|---|---|---|
+| A. ウォレット内部API（ユーザー） | `/me/*`, `/rates` | Supabase JWT（`Authorization: Bearer <jwt>`） |
+| B. 加盟店向け公開API | `/v1/*` | APIキー（`Authorization: Bearer sk_test_xxx`） |
+| C. モック用・管理API | `/mock/*`, `/admin/*` | 開発時のみ有効（環境変数 `DEMO_MOCK_ENDPOINTS=true`） |
+
+### 5.1 共通ルール
+
+- 金額は最小単位の **文字列**（`"amount": "1500"`, `"currency": "JPY"`）
+- POST は `Idempotency-Key` ヘッダーを受け付ける（加盟店API では**必須**）。同一キー + 同一ボディなら同じレスポンスを返す。同一キー + 異なるボディなら `409`
+- ID は接頭辞付き（`cs_`, `pay_`, `re_`, `evt_`, `wh_`, `qt_`）
+- 全レスポンスに `X-Demo-Mode: true`、`X-Request-Id`
+- エラー形式:
+
+```json
+{
+  "error": {
+    "type": "invalid_request_error" | "authentication_error" | "insufficient_funds" | "not_found" | "rate_limited" | "api_error",
+    "code": "insufficient_funds",
+    "message": "JPY残高が不足しています",
+    "param": "amount"
+  }
+}
+```
+
+- レート制限（簡易）: APIキーごとに 60 req/分。超過で `429`
+- ページネーション: `?limit=20&starting_after=<id>`、レスポンスは `{ "data": [...], "has_more": true }`
+
+### 5.2 A. ウォレット内部API
+
+```
+GET  /me                         プロフィール + 全通貨残高
+GET  /me/wallets                 [{ currency, balance, kind }]
+GET  /me/transactions?currency=&limit=&starting_after=
+                                 統合取引履歴（journal ベース）
+
+POST /me/topups/card             { amount, currency:"JPY", card:{ number, exp, cvc } }
+                                 → テスト番号 4242424242424242 成功 / 4000000000000002 失敗 / それ以外 400
+POST /me/topups/bank/virtual-account
+                                 → ユーザー専用の模擬振込先を発行（既存なら返す）
+GET  /me/topups                  チャージ履歴
+
+POST /me/points/purchase         { amount_jpy, method:"card"|"bank_transfer"|"wallet_jpy", card?:{...} }
+                                 → 適用キャンペーンのボーナスを含めて PT を付与
+GET  /me/points/campaigns        有効なキャンペーン一覧
+
+GET  /rates?base=USD&quote=JPY   現在レート（スプレッド前）
+POST /me/fx/quotes               { from_currency, to_currency, from_amount }
+                                 → { id:"qt_...", to_amount, rate, spread_bps, expires_at }（60秒固定）
+POST /me/fx/quotes/:id/execute   → 仕訳を起票し両替を確定。期限切れなら 410
+GET  /me/fx/quotes/:id
+
+GET  /crypto/prices              { BTC:{ JPY:"..." }, ETH:{ JPY:"..." } }
+POST /me/crypto/orders           { side:"buy"|"sell", asset:"BTC", quote_currency:"JPY", asset_amount | quote_amount }
+GET  /me/crypto/orders
+POST /me/crypto/withdrawals      { asset, amount, to_address } → fake_tx_hash を返す（模擬）
+GET  /me/crypto/deposit-address  { asset } → 固定の模擬アドレス
+
+GET  /me/checkout/sessions/:id   Checkout ページ用。加盟店名・金額・支払可能ソースと換算額を返す
+POST /me/checkout/sessions/:id/confirm
+                                 { source_currency:"JPY"|"PT"|"USD"|"BTC"|... }
+                                 → payments を作成し、加盟店へ精算通貨で入金、Webhook をキュー
+POST /me/checkout/sessions/:id/cancel
+```
+
+### 5.3 B. 加盟店向け公開API（Stripe 風）
+
+```
+POST /v1/checkout/sessions
+  Idempotency-Key: <required>
+  {
+    "amount": "5980",
+    "currency": "JPY",
+    "order_id": "ORDER-1001",
+    "description": "商品A ×1",
+    "success_url": "https://shop.example/thanks?session_id={CHECKOUT_SESSION_ID}",
+    "cancel_url": "https://shop.example/cart",
+    "accepted_sources": ["JPY","PT","USD","BTC","ETH"],   // 省略時は全部
+    "metadata": { "customer_id": "c_123" }
+  }
+  → 201 {
+    "id": "cs_...", "object": "checkout.session", "status": "open",
+    "url": "https://{{app_domain}}/checkout/cs_...",
+    "amount": "5980", "currency": "JPY", "expires_at": "...", ...
+  }
+
+GET  /v1/checkout/sessions/:id
+POST /v1/checkout/sessions/:id/expire
+
+GET  /v1/payments?limit=&starting_after=&status=
+GET  /v1/payments/:id
+POST /v1/payments/:id/refunds     { "amount": "1000", "reason": "requested_by_customer" }  // 部分返金可
+GET  /v1/refunds/:id
+
+GET  /v1/balance                  { "available": [{ "currency":"JPY", "amount":"123456" }], "pending": [...] }
+GET  /v1/balance/transactions     加盟店側の入出金明細
+
+GET  /v1/webhook_endpoints
+POST /v1/webhook_endpoints        { "url": "...", "events": ["payment.succeeded", ...] } → secret は作成時のみ返す
+DELETE /v1/webhook_endpoints/:id
+GET  /v1/events?limit=            配信済みイベント一覧
+POST /v1/events/:id/resend        再送
+```
+
+### 5.4 Webhook 配信
+
+- イベント種別: `checkout.session.completed`, `checkout.session.expired`, `payment.succeeded`, `payment.refunded`, `payout.paid`（P1）
+- ペイロード:
+
+```json
+{
+  "id": "evt_...",
+  "type": "payment.succeeded",
+  "created": 1735689600,
+  "demo": true,
+  "data": { "object": { ...payment... } }
+}
+```
+
+- 署名ヘッダー `X-payCcount-Signature: t=<unix>,v1=<hex(HMAC-SHA256(secret, t + "." + body))>`
+- SDK に `verifyWebhookSignature(body, header, secret, toleranceSec=300)` を用意
+- 配信は Workers の Queue または Cron（無料枠に収まる方）で非同期。失敗時は指数バックオフで最大 5 回（1分, 5分, 30分, 2時間, 12時間）
+- 加盟店ダッシュボードから手動再送可能。レスポンスコードと本文の先頭 1KB を保存
+
+### 5.5 C. モック / 管理（開発時のみ）
+
+```
+POST /mock/bank/deposit           { virtual_account_id | account_number, amount, payer_name }
+                                  → bank_deposit_notifications を生成し、入金通知処理（topup 完了→仕訳）を走らせる
+POST /mock/rates/refresh          外部レート取得（フラグON時）またはシード再投入
+POST /mock/rates/set              { base, quote, rate }  デモ中に為替を動かす
+POST /mock/crypto/set-price       { asset, quote, price }
+POST /admin/point-campaigns       キャンペーン作成
+POST /admin/merchants             加盟店作成 + 初回APIキー発行
+```
+
+「入金通知 → 残高反映」は **銀行振込決済の実務と同じ流れ** で組む（通知受信 → 金額・振込先照合 → 冪等チェック → 仕訳 → ユーザー通知）。ここはこのプロジェクトの見せ場の1つなので手を抜かない。
+
+---
+
+## 6. 業務ロジック詳細
+
+### 6.1 手数料・スプレッド（すべて設定値、`config` テーブル or 環境変数）
+
+| 項目 | デフォルト |
+|---|---|
+| 加盟店決済手数料 | 1.6%（`fee_revenue` 勘定へ） |
+| 為替スプレッド | 0.5%（`fx_pool` 勘定へ） |
+| クリプト売買スプレッド | 1.0%（`crypto_custody` 勘定へ） |
+| ポイント購入ボーナス | キャンペーンで指定（例 +1%）。ボーナス分は `points_issuer` 勘定から発行 |
+| Checkout Session 有効期限 | 30 分 |
+| FX Quote 有効期限 | 60 秒 |
+
+### 6.2 決済（Checkout）のフロー
+
+1. 加盟店が `POST /v1/checkout/sessions` → `url` を受け取りユーザーをリダイレクト
+2. ユーザーが `/checkout/cs_xxx` を開く。未ログインならログイン後に戻る
+3. 画面に加盟店名・金額（加盟店通貨）・**支払ソースごとの換算額**（JPY / PT / USD / BTC…）を表示。残高不足のソースは非活性
+4. ユーザーが支払ソースを選び「支払う」→ `POST /me/checkout/sessions/:id/confirm`
+5. サーバー側 RPC `execute_payment` が1トランザクションで:
+   - ユーザー口座（source_currency）を減算
+   - 異通貨なら `fx_pool` を経由して精算通貨に換算（スプレッド込み）
+   - 加盟店口座（settlement_currency）に `settlement_amount - fee` を加算、`fee_revenue` に fee を加算
+   - `payments` / `checkout_sessions.status='completed'` を更新
+6. `payment.succeeded` と `checkout.session.completed` を Webhook キューへ
+7. `success_url` の `{CHECKOUT_SESSION_ID}` を置換してリダイレクト
+
+### 6.3 返金
+
+- 加盟店残高（精算通貨）から減算 → ユーザーへ **元の支払ソース通貨** で返金。為替は返金時点のレートではなく **決済時の `fx_rate`** で戻す（差額は `fx_pool` が吸収）
+- 手数料は返金しない（設定で切替可）
+- 部分返金を複数回可。累計が元金額を超えたら `400`
+
+### 6.4 ポイント
+
+- 1 PT = 1 JPY。決済時のみ使用可能。両替・出金・クリプト購入には使えない
+- 購入元は模擬カード／模擬銀行振込／JPY 残高
+- ボーナス付与は `point_campaigns` の有効なものを適用（複数該当なら最大）
+- 決済で PT を使う場合、加盟店には JPY で精算（`points_issuer` 勘定が JPY を負担する形で仕訳）
+
+### 6.5 レート供給
+
+- 起動時はシード（USD/JPY=150, EUR/JPY=162, GBP/JPY=190, BTC/JPY=15,000,000, ETH/JPY=500,000 など）
+- 環境変数 `RATES_PROVIDER=mock|live`。`live` のときは無料API（為替: Frankfurter、クリプト: CoinGecko の無認証エンドポイント）から 5 分ごとに取得。取得失敗時は前回値を使う
+- レートは常に `rates` テーブルを経由し、API から直接外部を叩かない
+
+---
+
+## 7. 画面一覧（apps/web）
+
+### 7.1 ユーザー向け（PWA、モバイルファースト）
+- `/login` — Supabase Auth（メールOTP。電話OTPは既存プロジェクト同様に切替可能な構成にしておく）
+- `/` ホーム — 総資産（JPY換算）、通貨別残高カード、直近取引
+- `/wallet/:currency` — 通貨別残高・履歴
+- `/topup` — カードチャージ / 銀行振込先表示（＋開発モードでは「入金をシミュレート」ボタン）
+- `/points` — ポイント購入、キャンペーン表示、残高
+- `/exchange` — 両替（Quote → 確認 → 実行、残り秒数表示）
+- `/crypto` — BTC/ETH 価格、購入・売却、入金アドレス、出金（模擬）
+- `/checkout/:sessionId` — 加盟店決済ページ（§6.2）
+- `/history` — 統合取引履歴（種別フィルタ）
+- `/settings`
+
+### 7.2 加盟店向け（`/merchant/*`、PC 向けレイアウト）
+- `/merchant` — 売上サマリ、残高（精算通貨）、直近決済
+- `/merchant/payments` — 決済一覧・詳細・返金
+- `/merchant/developers` — APIキー発行・失効、Webhook エンドポイント登録、イベントログ・再送、リクエストログ
+- `/merchant/docs` — 統合ガイド（`docs/api.md` をレンダリング）＋ SDK コードスニペット
+- `/merchant/settings` — 店舗名、精算通貨、国
+
+
+---
+
+## 8. SDK（packages/sdk）
+
+```ts
+// 加盟店サーバー側
+import { PayCcount } from '@payccount/js';
+const wallet = new PayCcount('sk_test_...', { baseUrl: process.env.WALLET_API_URL });
+
+const session = await wallet.checkout.sessions.create({
+  amount: '5980', currency: 'JPY', order_id: 'ORDER-1001',
+  success_url: '...', cancel_url: '...',
+}, { idempotencyKey: 'ORDER-1001' });
+
+// Webhook 検証
+const event = wallet.webhooks.constructEvent(rawBody, signatureHeader, endpointSecret);
+
+// ブラウザ側（任意）
+import { redirectToCheckout } from '@payccount/js/browser';
+redirectToCheckout(session.id);
+```
+
+- `<script src="https://{{app_domain}}/sdk/pay.js" data-session="cs_..."></script>` で「payCcountで支払う」ボタンを描画する軽量スクリプトも提供
+- 型定義を `packages/shared` から共有
+
+---
+
+## 9. サンプルEC
+
+### 9.1 apps/shop-jp（国内EC）
+- 日本語 UI、JPY 価格、商品 3〜5 点、カート、注文確定で SDK 経由の Checkout へ
+- `functions/api/webhook.ts` で `payment.succeeded` を受け取り注文を「支払済」に更新（署名検証必須）
+- 注文一覧ページで Webhook 受信状況が見える
+
+### 9.2 apps/shop-global（海外EC）
+- 英語 UI、USD 価格、精算通貨 USD の加盟店として登録
+- 日本のユーザーが JPY / PT / BTC で払い、加盟店には USD で入るところを見せる（Checkout ページに換算額とレートを表示）
+
+両方とも README に「加盟店登録 → APIキー設定 → 起動」の手順を書く。
+
+---
+
+## 10. 実装フェーズ（各フェーズ末に git commit、動作確認してから次へ）
+
+### Phase 0 — 足場
+- [x] pnpm workspaces、apps/api（Hono + wrangler）、apps/web（Vite + React + PWA）、packages/shared
+- [x] Supabase プロジェクト接続、`.env.example`、`supabase/migrations/0001_init.sql`（currencies, accounts, journal_entries, ledger_lines, profiles）
+- [x] `post_journal` RPC と Vitest（合計0チェック、負残高拒否、冪等キー）
+- [x] デモバナー、`X-Demo-Mode` ヘッダー
+
+### Phase 1 — JPY ウォレット
+- [ ] ログイン、ホーム、残高、取引履歴
+- [ ] 模擬カードチャージ（テスト番号）
+- [ ] 模擬銀行振込: 振込先発行 → `/mock/bank/deposit` → 入金通知処理 → 残高反映 → 画面通知
+
+### Phase 2 — マルチカレンシー
+- [ ] currencies に USD/EUR/GBP、`rates` シード、`/rates`
+- [ ] Quote → Execute の両替フロー、期限切れ処理、スプレッド仕訳
+- [ ] ホームの総資産 JPY 換算
+
+### Phase 3 — クリプト
+- [ ] BTC/ETH 価格、購入・売却（`crypto_custody` 勘定）
+- [ ] 模擬入金アドレス・模擬出金（fake tx hash）
+- [ ] `RATES_PROVIDER=live` 切替（任意）
+
+### Phase 4 — ポイント
+- [ ] PT 通貨、購入（3 経路）、キャンペーン、ボーナス仕訳
+- [ ] 履歴・残高表示
+
+### Phase 5 — 加盟店 API + Checkout
+- [ ] merchants / api_keys、`/admin/merchants`、キー認証ミドルウェア、冪等性ミドルウェア、レート制限
+- [ ] `/v1/checkout/sessions`、Checkout ページ、`execute_payment` RPC（異通貨・PT 対応）
+- [ ] `/v1/payments`、返金、`/v1/balance`
+- [ ] Webhook: エンドポイント登録、署名、非同期配信、リトライ、再送
+- [ ] 加盟店ダッシュボード一式
+
+### Phase 6 — SDK + サンプルEC
+- [ ] packages/sdk（サーバー / ブラウザ / webhooks）
+- [ ] shop-jp、shop-global、それぞれ Webhook 受信まで通す
+- [ ] `docs/api.md`
+
+### Phase 7 — 仕上げ
+- [ ] E2E（Playwright）: チャージ → 両替 → 海外ECで BTC 払い → 返金
+- [ ] 台帳整合性チェックのスクリプト（`pnpm ledger:verify`）
+- [ ] README（構想説明 + スクリーンショット + アーキテクチャ図）、Cloudflare Pages / Workers デプロイ手順
+- [ ] `payCcount` の一括置換
+
+---
+
+## 11. 受け入れ基準（完了の定義）
+
+- [ ] 6 機能すべてが UI から操作できる
+- [ ] 任意の操作列の後で `pnpm ledger:verify` が通る（全仕訳合計 0、user/merchant 口座 ≥ 0、accounts.balance と ledger_lines 集計が一致）
+- [ ] 同一 `Idempotency-Key` で `POST /v1/checkout/sessions` を 2 回叩いても Session は 1 つ
+- [ ] shop-global で BTC 払い → 加盟店残高が USD で増え、`fee_revenue` と `fx_pool` / `crypto_custody` に差額が計上される
+- [ ] 返金後、ユーザーの元通貨残高が決済時レートで戻る
+- [ ] Webhook 配信先を落とした状態で決済 → 復旧後リトライで届く／ダッシュボードから再送できる
+- [ ] 全画面にデモ表示、全 API レスポンスに `X-Demo-Mode: true`
+
+---
+
+## 12. Claude Code への作業ルール
+
+- フェーズ順に進める。フェーズをまたぐ先行実装はしない
+- **残高を直接 UPDATE するコードを書かない**。すべて RPC 経由
+- 金額計算に `number` を使わない（`bigint` / decimal）
+- 本物の外部決済・ブロックチェーン・有料サービスを組み込まない。必要に見えたらモックにして `// TODO(real):` を残す
+- 各フェーズ完了時に: テスト実行 → `git commit -m "phase N: ..."` → このファイル末尾の「進捗ログ」に日付と要点を追記
+- 判断に迷う点は **デフォルトを選んで進め**、「決定事項」セクションに理由付きで記録する。ブロッキングな確認（有料サービス、外部アカウントが必要、仕様の矛盾）だけ質問する
+- コードコメント・UI 文言は日本語、識別子・コミットメッセージは英語
+
+---
+
+## 13. 決定事項ログ
+
+| 日付 | 決定 | 理由 |
+|---|---|---|
+| (初期) | 金額は最小単位の文字列 | ETH の wei が Number に収まらないため |
+| (初期) | API は Hono / Workers、台帳は Postgres RPC | フロントは既存パターン、整合性は DB トランザクションに寄せる |
+| 2026-09-11 | API の DB アクセスを「RPC 呼び出しのみ」の `Db` ポートに限定し、Supabase（PostgREST）アダプタとローカル Postgres（postgres.js）アダプタの 2 実装を持つ | 開発環境に Supabase プロジェクトが無くても `pnpm db:start` だけで全機能を動かし、Vitest で台帳・API を実 DB に対して検証できる。本番は Supabase をそのまま使う |
+| 2026-09-11 | 認証は `AUTH_MODE=supabase`（Supabase Auth JWT）と `AUTH_MODE=demo`（メールだけでログインできるデモ認証、HS256 JWT）を切替可能にする | ローカル Postgres では GoTrue が無いため。フロントも `VITE_SUPABASE_URL` の有無で自動切替 |
+| 2026-09-11 | 管理者アカウント（ID `kuro`）は固定 UUID で seed し、`profiles.role='admin'`。Supabase では `kuro@payccount.demo` + パスワード、ローカルでは `admin_credentials`（bcrypt）で ID/パスワード認証 | 仕様 §15。`/admin/*` は「開発時フラグ」ではなく管理者ロールの JWT で保護する（デモ運営者が本番相当でも使える） |
+| 2026-09-11 | `journal_entries.reference_id` は `uuid` ではなく `text` | `payments.id` が `pay_...` 形式の text のため |
+| 2026-09-11 | 業務エラーは plpgsql で `raise exception using message=<code>, detail=<日本語メッセージ>, hint=<param>`（errcode P0001）とし、API 層でコード→HTTP を変換する | PostgREST / postgres.js の両方で同じ構造のエラーが取れる。`insufficient_funds` は 402 |
+| 2026-09-11 | `accounts` の一意制約は `unique nulls not distinct` | `owner_id` / `system_code` が NULL の口座で重複を防ぐため（PG15+、Supabase は対応） |
+| 2026-09-11 | RPC の引数はスカラー / `jsonb` / `text[]` のみ（`uuid[]` などは使わない） | PostgREST と postgres.js の両方で型推論が安定する。`text[]` は RPC 内で cast する |
+| 2026-09-11 | Workers では postgres.js の接続をリクエストごとに生成して閉じる（Supabase アダプタは共有） | Workers は TCP ソケットをリクエスト間で共有できない（"Cannot perform I/O on behalf of a different request"） |
+| 2026-09-11 | `packages/shared` / `packages/sdk` は `exports` で `src/*.ts` を直接公開する（ビルド不要の内部パッケージ）。SDK は npm 公開用に `dist` ビルドも持つ | Vite / wrangler / vitest / tsc(bundler) はすべて TS ソースを解決でき、開発時のビルド手順を無くせる |
+| 2026-09-11 | Vite は 7.x に固定（8 は plugin-react 5 系との組み合わせを避ける）、Vitest 4.x、Tailwind 4.x（`@tailwindcss/vite`） | 安定版の組み合わせ |
+
+## 14. 進捗ログ
+
+（Claude Code がフェーズ完了ごとに追記）
+
+- **2026-09-11 Phase 0 完了** — pnpm workspaces（apps/api, apps/web, packages/shared）、`supabase/migrations/0001_init.sql`（currencies / config / profiles / accounts / journal_entries / ledger_lines / notifications、`post_journal` / `ensure_account` / `ledger_verify` / `get_me` / `list_transactions` など）、`supabase/seed.sql`（管理者 kuro）。ローカル Postgres 用スクリプト `scripts/db/local.sh`（`pnpm db:start|reset|stop|psql`）と auth スタブ。API: Hono + `Db` ポート（Supabase / postgres.js）、デモ認証、`/me`、`/admin/ledger/verify`、`X-Demo-Mode` / `X-Request-Id`、Stripe 風エラー。Web: Vite + React 19 + Tailwind 4 + PWA、デモバナー、ログイン（ユーザー / 管理者タブ）、ホーム。テスト: shared 15 件、api 22 件（台帳の合計 0 / 負残高拒否 / 冪等キー / 同時実行 / ledger_verify、ヘッダー・エラー形式・認証）。`wrangler dev` + ローカル Postgres で疎通確認済み。
+
+## 15. 管理者アカウント
+id:kuro
+pass:atusi0130
+上記で全てが閲覧出来る管理者権限を作成
+
+- 実装: `supabase/seed.sql` で固定 UUID `00000000-0000-4000-8000-000000000001` の管理者を作成（`profiles.role = 'admin'`）。
+  - Supabase Auth: メール `kuro@payccount.demo` / パスワード `atusi0130` でログイン（ログイン画面の「管理者」タブは ID `kuro` を自動でこのメールに変換する）
+  - ローカル（`AUTH_MODE=demo`）: `admin_credentials` テーブル（bcrypt）で ID / パスワードを検証する `POST /auth/demo/admin-login`
+  - 管理者は `/admin/*`（API・画面）で全ユーザー・加盟店・台帳・Webhook を閲覧できる
+- **注意**: デモ用の固定値。デモ以外で使う場合は必ず変更すること。

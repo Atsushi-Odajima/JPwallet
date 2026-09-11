@@ -1,0 +1,21 @@
+{
+  "name": "@payccount/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "payCcount 共通の型定義・通貨ユーティリティ・定数",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0",
+    "vitest": "^4.1.0"
+  }
+}

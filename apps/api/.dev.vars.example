@@ -1,0 +1,17 @@
+# wrangler dev 用のローカル環境変数。コピーして .dev.vars を作る（.dev.vars は git 管理外）
+#
+# --- (B) ローカル Postgres + デモ認証（Supabase 不要） ---
+DATABASE_URL=postgres://payccount:payccount@127.0.0.1:54329/payccount
+AUTH_MODE=demo
+JWT_SECRET=local-dev-secret-change-me-0123456789abcdef
+#
+# --- (A) Supabase を使う場合はこちら ---
+# SUPABASE_URL=https://xxxx.supabase.co
+# SUPABASE_SERVICE_ROLE_KEY=eyJ...
+# AUTH_MODE=supabase
+# JWT_SECRET=<Supabase の JWT Secret（未設定なら JWKS で検証）>
+#
+APP_URL=http://localhost:5173
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174,http://localhost:5175
+DEMO_MOCK_ENDPOINTS=true
+RATES_PROVIDER=mock

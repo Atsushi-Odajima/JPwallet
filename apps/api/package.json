@@ -1,0 +1,29 @@
+{
+  "name": "@payccount/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "payCcount API — Hono on Cloudflare Workers（内部API + 加盟店向け公開API + Webhook 配信）",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@payccount/shared": "workspace:*",
+    "@supabase/supabase-js": "^2.116.0",
+    "hono": "^4.13.0",
+    "jose": "^6.2.0",
+    "postgres": "^3.4.9",
+    "zod": "^4.6.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260911.1",
+    "@types/node": "^22.20.2",
+    "typescript": "^5.9.0",
+    "vitest": "^4.1.0",
+    "wrangler": "^4.131.0"
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "name": "payccount",
+  "private": true,
+  "version": "0.1.0",
+  "description": "payCcount — 日本産オンラインEウォレット（デモ）",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel --filter ./apps/api --filter ./apps/web run dev",
+    "dev:api": "pnpm --filter @payccount/api run dev",
+    "dev:web": "pnpm --filter @payccount/web run dev",
+    "dev:shop-jp": "pnpm --filter @payccount/shop-jp run dev",
+    "dev:shop-global": "pnpm --filter @payccount/shop-global run dev",
+    "build": "pnpm -r run build",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "pnpm -r run test",
+    "db:start": "bash scripts/db/local.sh start",
+    "db:stop": "bash scripts/db/local.sh stop",
+    "db:reset": "bash scripts/db/local.sh reset",
+    "db:migrate": "bash scripts/db/local.sh migrate",
+    "db:psql": "bash scripts/db/local.sh psql",
+    "ledger:verify": "tsx scripts/ledger-verify.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd",
+      "@tailwindcss/oxide",
+      "sharp"
+    ]
+  }
+}
