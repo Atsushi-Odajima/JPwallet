@@ -2,12 +2,24 @@
  * 注文と Webhook 受信ログの保存。
  *   - Cloudflare Pages では KV（binding: ORDERS）
  *   - バインディングが無い場合はメモリ（開発用。プロセスが終わると消える）
+ *
+ * Webhook は複数のイベントが同時に届く（payment.succeeded と checkout.session.completed）ため、
+ * 注文本体・状態・受信ログを別キーに分けて「読み→書き」の競合で更新が失われないようにしている。
  */
 export interface OrderItem {
   id: string;
   name: string;
   price: string;
   qty: number;
+}
+
+export type OrderStatus = 'pending' | 'paid' | 'partially_refunded' | 'refunded' | 'expired' | 'canceled';
+
+export interface OrderWebhook {
+  event_id: string;
+  type: string;
+  received_at: string;
+  summary: string;
 }
 
 export interface Order {
@@ -18,11 +30,11 @@ export interface Order {
   session_id: string | null;
   checkout_url: string | null;
   payment_id: string | null;
-  status: 'pending' | 'paid' | 'partially_refunded' | 'refunded' | 'expired' | 'canceled';
+  status: OrderStatus;
   created_at: string;
   updated_at: string;
   /** 受信した Webhook（新しい順） */
-  webhooks: { event_id: string; type: string; received_at: string; summary: string }[];
+  webhooks: OrderWebhook[];
 }
 
 export interface Env {
@@ -47,10 +59,36 @@ export class OrderStore {
     if (this.kv) await this.kv.put(key, value);
     else memory.set(key, value);
   }
+  private async listKeys(prefix: string): Promise<string[]> {
+    if (this.kv) {
+      const keys: string[] = [];
+      let cursor: string | undefined;
+      do {
+        const res = await this.kv.list({ prefix, cursor });
+        keys.push(...res.keys.map((k) => k.name));
+        cursor = res.list_complete ? undefined : res.cursor;
+      } while (cursor);
+      return keys;
+    }
+    return [...memory.keys()].filter((k) => k.startsWith(prefix));
+  }
 
+  /** 注文本体 + 状態 + Webhook ログを合成して返す */
   async get(orderId: string): Promise<Order | null> {
     const raw = await this.getRaw(`order:${orderId}`);
-    return raw ? (JSON.parse(raw) as Order) : null;
+    if (!raw) return null;
+    const base = JSON.parse(raw) as Order;
+    const statusRaw = await this.getRaw(`order-status:${orderId}`);
+    if (statusRaw) {
+      const s = JSON.parse(statusRaw) as { status: OrderStatus; payment_id: string | null; updated_at: string };
+      base.status = s.status;
+      base.payment_id = s.payment_id ?? base.payment_id;
+      base.updated_at = s.updated_at;
+    }
+    const keys = await this.listKeys(`order-webhook:${orderId}:`);
+    const hooks = await Promise.all(keys.map(async (k) => JSON.parse((await this.getRaw(k)) ?? 'null') as OrderWebhook | null));
+    base.webhooks = hooks.filter((h): h is OrderWebhook => !!h).sort((a, b) => (a.received_at < b.received_at ? 1 : -1));
+    return base;
   }
 
   async getBySession(sessionId: string): Promise<Order | null> {
@@ -58,15 +96,27 @@ export class OrderStore {
     return id ? this.get(id) : null;
   }
 
-  async put(order: Order): Promise<void> {
-    order.updated_at = new Date().toISOString();
-    await this.putRaw(`order:${order.id}`, JSON.stringify(order));
+  /** 注文の作成（本体は以後変更しない） */
+  async create(order: Order): Promise<void> {
+    await this.putRaw(`order:${order.id}`, JSON.stringify({ ...order, webhooks: [] }));
     if (order.session_id) await this.putRaw(`session:${order.session_id}`, order.id);
     const index = await this.index();
     if (!index.includes(order.id)) {
       index.unshift(order.id);
       await this.putRaw(INDEX_KEY, JSON.stringify(index.slice(0, 200)));
     }
+  }
+
+  /** 状態の更新（決済・返金・期限切れ） */
+  async setStatus(orderId: string, status: OrderStatus, paymentId?: string | null): Promise<void> {
+    const prev = await this.getRaw(`order-status:${orderId}`);
+    const prevPayment = prev ? (JSON.parse(prev) as { payment_id: string | null }).payment_id : null;
+    await this.putRaw(`order-status:${orderId}`, JSON.stringify({ status, payment_id: paymentId ?? prevPayment, updated_at: new Date().toISOString() }));
+  }
+
+  /** Webhook 受信ログの追記（イベントごとに別キー） */
+  async addWebhook(orderId: string, hook: OrderWebhook): Promise<void> {
+    await this.putRaw(`order-webhook:${orderId}:${hook.received_at}-${hook.event_id}`, JSON.stringify(hook));
   }
 
   async index(): Promise<string[]> {

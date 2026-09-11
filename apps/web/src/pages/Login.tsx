@@ -1,6 +1,6 @@
 import { ADMIN_LOGIN_ID, APP_NAME } from '@payccount/shared';
 import { useState, type FormEvent } from 'react';
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { DemoBanner, DemoFooter } from '../components/DemoBanner';
 import { Button, Card, ErrorText, Input, Spinner } from '../components/ui';
 import { useAuth } from '../lib/auth-context';
@@ -11,7 +11,6 @@ type Tab = 'user' | 'admin';
 export function LoginPage() {
   const { adapter, session, loading, setSession } = useAuth();
   const [params] = useSearchParams();
-  const navigate = useNavigate();
   const next = params.get('next') || '/';
 
   const [tab, setTab] = useState<Tab>('user');
@@ -22,9 +21,11 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** ログイン後の遷移先（管理者は /admin）。session が入ると <Navigate> が使う */
+  const [redirectTo, setRedirectTo] = useState<string | null>(null);
 
   if (loading) return <Spinner className="min-h-screen" />;
-  if (session) return <Navigate to={next} replace />;
+  if (session) return <Navigate to={redirectTo ?? next} replace />;
 
   const submitEmail = async (e: FormEvent) => {
     e.preventDefault();
@@ -35,8 +36,8 @@ export function LoginPage() {
       if (r.needsOtp) {
         setOtpSent(true);
       } else if (r.session) {
+        setRedirectTo(next);
         setSession(r.session);
-        navigate(next, { replace: true });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -51,8 +52,8 @@ export function LoginPage() {
     setError(null);
     try {
       const s = await adapter.verifyOtp(email.trim(), otp.trim());
+      setRedirectTo(next);
       setSession(s);
-      navigate(next, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -66,8 +67,8 @@ export function LoginPage() {
     setError(null);
     try {
       const s = await adapter.signInAdmin(adminId.trim(), password);
+      setRedirectTo(next === '/' ? '/admin' : next);
       setSession(s);
-      navigate(next === '/' ? '/admin' : next, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {

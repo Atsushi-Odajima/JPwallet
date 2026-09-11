@@ -33,6 +33,11 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* 管理者画面（暗い背景）の中の白いカードは通常の文字色に戻す */
+.admin-main section {
+  color: var(--color-slate-800);
+}
+
 /* Markdown（統合ガイド） */
 .prose-docs h1 { @apply text-2xl font-bold mt-8 mb-3; }
 .prose-docs h2 { @apply text-xl font-bold mt-8 mb-3 border-b border-slate-200 pb-1; }

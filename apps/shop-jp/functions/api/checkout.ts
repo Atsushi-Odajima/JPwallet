@@ -65,7 +65,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     );
     order.session_id = session.id;
     order.checkout_url = session.url;
-    await store.put(order);
+    await store.create(order);
     return json({ order_id: orderId, session_id: session.id, url: session.url });
   } catch (e) {
     if (e instanceof PayCcountError) {

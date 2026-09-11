@@ -511,22 +511,23 @@ redirectToCheckout(session.id);
 - [x] `docs/api.md`
 
 ### Phase 7 — 仕上げ
-- [ ] E2E（Playwright）: チャージ → 両替 → 海外ECで BTC 払い → 返金
-- [ ] 台帳整合性チェックのスクリプト（`pnpm ledger:verify`）
-- [ ] README（構想説明 + スクリーンショット + アーキテクチャ図）、Cloudflare Pages / Workers デプロイ手順
-- [ ] `payCcount` の一括置換
+- [x] E2E（Playwright）: チャージ → 両替 → 海外ECで BTC 払い → 返金（`pnpm e2e`、サーバー自動起動）
+- [x] 台帳整合性チェックのスクリプト（`pnpm ledger:verify`）
+- [x] README（構想説明 + スクリーンショット + アーキテクチャ図）、Cloudflare Pages / Workers デプロイ手順、`docs/architecture.md`
+- [x] `payCcount` の一括置換（全レイヤで `payCcount` 表記に統一済み。置換対象なし）
+- [x] 管理者画面 `/admin/*`（§15: kuro が全ユーザー・加盟店・決済・台帳・Webhook・監査ログを閲覧）
 
 ---
 
 ## 11. 受け入れ基準（完了の定義）
 
-- [ ] 6 機能すべてが UI から操作できる
-- [ ] 任意の操作列の後で `pnpm ledger:verify` が通る（全仕訳合計 0、user/merchant 口座 ≥ 0、accounts.balance と ledger_lines 集計が一致）
-- [ ] 同一 `Idempotency-Key` で `POST /v1/checkout/sessions` を 2 回叩いても Session は 1 つ
-- [ ] shop-global で BTC 払い → 加盟店残高が USD で増え、`fee_revenue` と `fx_pool` / `crypto_custody` に差額が計上される
-- [ ] 返金後、ユーザーの元通貨残高が決済時レートで戻る
-- [ ] Webhook 配信先を落とした状態で決済 → 復旧後リトライで届く／ダッシュボードから再送できる
-- [ ] 全画面にデモ表示、全 API レスポンスに `X-Demo-Mode: true`
+- [x] 6 機能すべてが UI から操作できる（Playwright スモーク / E2E で確認）
+- [x] 任意の操作列の後で `pnpm ledger:verify` が通る（全仕訳合計 0、user/merchant 口座 ≥ 0、accounts.balance と ledger_lines 集計が一致）— API テスト全件 + E2E 後に OK
+- [x] 同一 `Idempotency-Key` で `POST /v1/checkout/sessions` を 2 回叩いても Session は 1 つ（`merchant.test.ts`、再送は `Idempotency-Replayed: true`）
+- [x] shop-global で BTC 払い → 加盟店残高が USD で増え、`fee_revenue` と `fx_pool` / `crypto_custody` に差額が計上される（E2E: $49.99 → 残高 $49.20、fee_revenue $0.79、crypto_custody −$49.99 / +0.00050495 BTC）
+- [x] 返金後、ユーザーの元通貨残高が決済時レートで戻る（$10 → 10,101 sat、全額返金で元の BTC 額に一致）
+- [x] Webhook 配信先を落とした状態で決済 → 復旧後リトライで届く／ダッシュボードから再送できる（`merchant.test.ts` の「Webhook の信頼性」、ダッシュボードの再送・今すぐ配信）
+- [x] 全画面にデモ表示、全 API レスポンスに `X-Demo-Mode: true`
 
 ---
 
@@ -558,6 +559,16 @@ redirectToCheckout(session.id);
 | 2026-09-11 | Workers では postgres.js の接続をリクエストごとに生成して閉じる（Supabase アダプタは共有） | Workers は TCP ソケットをリクエスト間で共有できない（"Cannot perform I/O on behalf of a different request"） |
 | 2026-09-11 | `packages/shared` / `packages/sdk` は `exports` で `src/*.ts` を直接公開する（ビルド不要の内部パッケージ）。SDK は npm 公開用に `dist` ビルドも持つ | Vite / wrangler / vitest / tsc(bundler) はすべて TS ソースを解決でき、開発時のビルド手順を無くせる |
 | 2026-09-11 | Vite は 7.x に固定（8 は plugin-react 5 系との組み合わせを避ける）、Vitest 4.x、Tailwind 4.x（`@tailwindcss/vite`） | 安定版の組み合わせ |
+| 2026-09-11 | Checkout Session の `currency` は加盟店の精算通貨と一致必須（異なれば 400 `currency_not_supported`） | 決済ごとの為替を「支払ソース → 精算通貨」の 1 段に限定し、`payments.fx_rate` を 1 つのレートとして定義できる |
+| 2026-09-11 | 返金は精算通貨の返金額を元の支払額で按分（`floor(source_amount × amount / settlement_amount)`、最後の全額返金は残り全部）。手数料は返さない（`config.refund_returns_fee` で切替） | 全額返金でユーザーの元通貨残高が厳密に元に戻る。為替差はプール勘定が吸収（仕様 §6.3） |
+| 2026-09-11 | Webhook は `webhook_events`（加盟店単位）と `webhook_deliveries`（エンドポイント単位）に分離。再送は新しい配信レコードを作る | 複数エンドポイント・履歴保持・`skip locked` による多重実行耐性のため。仕様の `webhook_events.status/attempts` は配信レコード側に持つ |
+| 2026-09-11 | `/v1` の冪等性は `idempotency_keys`（レスポンス保存）+ `checkout_sessions(merchant_id, idempotency_key)` 一意制約の二重防御 | 同時リクエストでも Session が 1 つになる |
+| 2026-09-11 | レート制限は DB カウンタ（`api_rate_limits`、固定ウィンドウ 1 分） | Workers はアイソレート間でメモリを共有しないため |
+| 2026-09-11 | `/admin/*` は `DEMO_MOCK_ENDPOINTS` ではなく管理者ロールの JWT で保護。`/mock/*` だけをフラグで切替 | 管理者アカウント（§15）が本番相当でも使える。モックは開発時のみ |
+| 2026-09-11 | Webhook 配信は決済直後に `executionCtx.waitUntil`（テストではレスポンス前に await）+ Cron の再送 | ユーザーの応答を待たせずに配信し、失敗は Cron が拾う。テストでは決定的に検証できる |
+| 2026-09-11 | サンプルEC は注文本体・状態・Webhook ログを別キーに保存 | `payment.succeeded` と `checkout.session.completed` が同時に届いたときの read-modify-write の更新消失を防ぐ（E2E で再現して修正） |
+| 2026-09-11 | SDK 内では `fetch` を必ずラップして呼ぶ | Workers で別 `this` から `fetch` を呼ぶと "Illegal invocation" になる |
+| 2026-09-11 | ローカル Postgres では `wrangler dev` から `DATABASE_URL` へ直接接続（postgres.js、リクエストごとに接続）。本番は Supabase（PostgREST） | デモを Supabase なしで完結させつつ、本番構成は仕様どおり |
 
 ## 14. 進捗ログ
 
@@ -570,6 +581,7 @@ redirectToCheckout(session.id);
 - **2026-09-11 Phase 4 完了** — `0005_points.sql`: PT 通貨、`point_campaigns`（シード: +1% / ¥10,000 以上 +3%、`pick_point_campaign` は最大ボーナスを選ぶ）、`point_purchases`、`purchase_points`（wallet_jpy: user JPY − / card: card_clearing − → points_issuer JPY +、points_issuer PT −granted / user PT +granted、ボーナスは points_issuer が無裏付けで発行、Idempotency-Key 対応、失敗カードは失敗履歴）、bank_transfer は識別コード `PTxxxxxxxx` を発行して pending にし、`process_bank_deposit` を拡張（`p_reference` または振込人名から抽出 → 金額一致で PT 付与、不一致なら通常チャージ + note）。`create_point_campaign` / `list_point_campaigns`。カード検証を `lib/cards.ts` に共通化。API: `/me/points/campaigns|purchase|purchases`、`/admin/point-campaigns`（GET/POST、管理者のみ）、`/mock/bank/deposit` に `reference`。Web: `/points`（残高、キャンペーン、購入フォーム 3 経路、保留中の振込 + 入金シミュレート、購入履歴）。テスト 73 件（api）。Playwright で JPY 残高購入 → 銀行振込購入 → 入金照合で 6,060 PT を確認。
 - **2026-09-11 Phase 5 完了** — `0006_merchants.sql`: merchants / api_keys（SHA-256 ハッシュのみ保存、平文は発行時のみ）/ checkout_sessions（`cs_`、`(merchant_id, idempotency_key)` 一意、30 分）/ payments（`pay_`）/ refunds（`re_`）/ webhook_endpoints（`wh_`、`whsec_`）/ webhook_events（`evt_`）/ webhook_deliveries（`whd_`、エンドポイントごとの配信）/ idempotency_keys / api_rate_limits / api_request_logs / audit_logs。RPC: `authenticate_api_key`、`bump_rate_limit`（60 req/分・固定ウィンドウ）、`idempotency_lookup|store`、`create_checkout_session`（通貨は精算通貨と一致必須）、`get_checkout_view`（ソースごとの必要額 = `compute_source_amount`: 同通貨・PT→JPY はそのまま、異通貨はミッド × (1 − スプレッド) で切り上げ）、`execute_payment`（1 トランザクションで user source − → fx_pool / crypto_custody / points_issuer 経由 → merchant +net、fee_revenue +fee、`payment.succeeded` + `checkout.session.completed` をキュー、冪等）、`refund_payment`（元通貨で按分返金、最後は残り全額、手数料は返さない（config で切替）、累計超過は 400、加盟店残高不足は 402）、Webhook: `enqueue_webhook_event` / `claim_webhook_deliveries`（skip locked）/ `record_webhook_delivery`（1分,5分,30分,2時間,12時間・最大 5 回）/ `resend_webhook_event` / `expire_checkout_sessions`。API: `/v1/*`（APIキー認証 + POST は Idempotency-Key 必須、再送は `Idempotency-Replayed: true`、異なるボディは 409）、`/me/checkout/sessions/:id(/confirm|/cancel)`、`/me/merchants/*`（ダッシュボード用、オーナー/管理者）、`/admin/merchants`。Webhook 署名は `packages/shared/webhooks.ts`（`signWebhookPayload` / `verifyWebhookSignature`）で API と SDK が共有。配信は決済直後（`waitUntil`）+ Cron。Web: `/checkout/:sessionId`（ソース選択・換算額・残高不足は非活性・支払い → success_url へ）、`/merchant`（概要 / 決済と返金 / 開発者: APIキー・Webhook・イベントログ・再送・リクエストログ / ドキュメント / 設定 / 加盟店追加）。テスト 102 件（api）。Playwright で 加盟店登録 → キー発行 → Webhook 登録 → API で Session 作成 → Checkout 支払い → success_url リダイレクト → 署名付き Webhook 3 件受信 → 返金 を確認。
 - **2026-09-11 Phase 6 完了** — `packages/sdk`（`@payccount/js`）: `PayCcount` クラス（`checkout.sessions.create|retrieve|expire`、`payments.list|retrieve|refund`、`refunds`、`balance`、`webhookEndpoints`、`events`、`webhooks.constructEvent`）、POST は Idempotency-Key 自動生成、`PayCcountError`、`@payccount/js/webhooks`（`constructEvent`）、`@payccount/js/browser`（`redirectToCheckout` / `renderPayButton`）、`tsc` で `dist` ビルド、テスト 6 件（偽 fetch）。Workers で `fetch` を別 this で呼ぶと Illegal invocation になるため必ずラップ。`apps/web/public/sdk/pay.js`（`data-session` でボタン描画）。`apps/shop-jp`（サクラ雑貨店・JPY・日本語）/ `apps/shop-global`（Globe Goods・USD・英語）: React + Vite + Pages Functions（`/api/checkout` がサーバー側でカタログから金額を再計算し SDK で Session 作成、`/api/webhook` が署名検証 + イベント ID 重複排除で注文を支払済/返金に更新、`/api/orders` で受信状況を表示、KV `ORDERS`（無ければメモリ））、`shop.config.ts` で言語・通貨・商品を切替、README に「加盟店登録 → APIキー設定 → 起動」。`docs/api.md` を実装に合わせて全面記述（`/merchant/docs` で描画）。Playwright で shop-jp を JPY 払い、shop-global を BTC 払い（$49.99 = 0.00050495 BTC）→ 両ショップとも Webhook で「支払済」に、Globe Goods の残高が USD 4,920、fee_revenue USD 79 / crypto_custody USD −4,999、$10 返金で 10,101 sat が戻ることを確認。
+- **2026-09-11 Phase 7 完了** — 管理者画面 `/admin/*`（`0007_admin.sql`: `admin_overview` / `admin_list_users` / `admin_get_user` / `admin_list_journals`（口座の持ち主付き）/ `admin_list_accounts` / `admin_list_payments` / `admin_list_checkout_sessions` / `admin_list_webhook_deliveries` / `admin_list_audit_logs`。API `/admin/*` は管理者ロール必須、`/admin/maintenance/run` で Cron 相当を手動実行。Web: 概要（件数・システム勘定・台帳検証・レート・直近仕訳）/ ユーザー（検索・残高・詳細）/ 加盟店（一覧・作成）/ 決済・Session / 台帳（検証・仕訳ブラウザ・全口座）/ Webhook 配信 / キャンペーン / 監査ログ）。E2E（`e2e/`、`pnpm e2e`）: global-setup が API・ウォレット・shop-global を起動して加盟店を用意し、チャージ ¥30,000 → 両替 → BTC 購入 → shop-global で BTC 払い（0.00050495 BTC）→ Webhook で Paid → $10 返金で 10,101 sat 戻る → 台帳 OK の 6 テストが通過。`scripts/ledger-verify.ts`（`pnpm ledger:verify`）。README（構想・スクリーンショット 12 枚・mermaid 図・クイックスタート・Supabase / Cloudflare デプロイ手順）、`docs/architecture.md`（台帳の仕訳例・シーケンス図・ミドルウェア・Webhook・認証）。修正: ログイン後の遷移レース（管理者が `/` に飛ぶ）、管理者画面の白カードの文字色、サンプルEC の Webhook 同時受信での更新消失。最終: typecheck 全パッケージ OK、テスト shared 15 / sdk 6 / api 108 / e2e 6。
 
 ## 15. 管理者アカウント
 id:kuro

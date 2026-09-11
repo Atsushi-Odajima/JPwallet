@@ -1,5 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { RequireAdmin } from './components/RequireAdmin';
 import { RequireAuth } from './components/RequireAuth';
+import { AdminLayout } from './layouts/AdminLayout';
 import { MerchantLayout } from './layouts/MerchantLayout';
 import { UserLayout } from './layouts/UserLayout';
 import { CheckoutPage } from './pages/Checkout';
@@ -13,6 +15,14 @@ import { PointsPage } from './pages/Points';
 import { SettingsPage } from './pages/Settings';
 import { TopupPage } from './pages/Topup';
 import { WalletPage } from './pages/Wallet';
+import { AdminAuditPage } from './pages/admin/Audit';
+import { AdminCampaignsPage } from './pages/admin/Campaigns';
+import { AdminLedgerPage } from './pages/admin/Ledger';
+import { AdminMerchantsPage } from './pages/admin/Merchants';
+import { AdminOverviewPage } from './pages/admin/Overview';
+import { AdminPaymentsPage } from './pages/admin/Payments';
+import { AdminUsersPage } from './pages/admin/Users';
+import { AdminWebhooksPage } from './pages/admin/Webhooks';
 import { MerchantDevelopersPage } from './pages/merchant/Developers';
 import { MerchantDocsPage } from './pages/merchant/Docs';
 import { OnboardPage } from './pages/merchant/Onboard';
@@ -69,6 +79,27 @@ export function App() {
           <Route path="docs" element={<MerchantDocsPage />} />
           <Route path="settings" element={<MerchantSettingsPage />} />
           <Route path="onboard" element={<OnboardPage />} />
+        </Route>
+
+        {/* 管理者（運営）— 全データ閲覧 */}
+        <Route
+          path="/admin"
+          element={
+            <RequireAuth>
+              <RequireAdmin>
+                <AdminLayout />
+              </RequireAdmin>
+            </RequireAuth>
+          }
+        >
+          <Route index element={<AdminOverviewPage />} />
+          <Route path="users" element={<AdminUsersPage />} />
+          <Route path="merchants" element={<AdminMerchantsPage />} />
+          <Route path="payments" element={<AdminPaymentsPage />} />
+          <Route path="ledger" element={<AdminLedgerPage />} />
+          <Route path="webhooks" element={<AdminWebhooksPage />} />
+          <Route path="campaigns" element={<AdminCampaignsPage />} />
+          <Route path="audit" element={<AdminAuditPage />} />
         </Route>
 
         <Route path="/index.html" element={<Navigate to="/" replace />} />

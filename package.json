@@ -14,8 +14,10 @@
     "dev:shop-jp": "pnpm --filter @payccount/shop-jp run dev",
     "dev:shop-global": "pnpm --filter @payccount/shop-global run dev",
     "build": "pnpm -r run build",
-    "typecheck": "pnpm -r run typecheck",
+    "typecheck": "pnpm -r run typecheck && tsc -p e2e/tsconfig.json --noEmit",
     "test": "pnpm -r run test",
+    "e2e": "playwright test -c e2e/playwright.config.ts",
+    "e2e:headed": "playwright test -c e2e/playwright.config.ts --headed",
     "db:start": "bash scripts/db/local.sh start",
     "db:stop": "bash scripts/db/local.sh stop",
     "db:reset": "bash scripts/db/local.sh reset",
@@ -25,6 +27,8 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
+    "@types/node": "^22",
+    "postgres": "^3.4.9",
     "tsx": "^4.20.0",
     "typescript": "^5.9.0"
   },

@@ -22,6 +22,7 @@ interface EventObject {
  *   1. verify the signature against the raw body (required)
  *   2. dedupe by event id
  *   3. payment.succeeded → paid / payment.refunded → refunded / checkout.session.expired → expired
+ * Status and the webhook log are stored under separate keys so concurrent webhooks never lose updates.
  */
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!env.PAYCCOUNT_WEBHOOK_SECRET) {
@@ -51,16 +52,15 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     let summary: string = event.type;
     switch (event.type) {
       case 'payment.succeeded':
-        order.status = 'paid';
-        order.payment_id = obj.id ?? null;
+        await store.setStatus(order.id, 'paid', obj.id ?? null);
         summary = `Paid (${obj.source_currency} ${obj.source_amount} → ${obj.settlement_currency} ${obj.settlement_amount})`;
         break;
       case 'payment.refunded':
-        order.status = obj.status === 'refunded' ? 'refunded' : 'partially_refunded';
+        await store.setStatus(order.id, obj.status === 'refunded' ? 'refunded' : 'partially_refunded');
         summary = `Refund ${obj.refund?.amount ?? ''} ${obj.refund?.currency ?? ''} (total refunded ${obj.refunded_amount ?? ''})`;
         break;
       case 'checkout.session.expired':
-        if (order.status === 'pending') order.status = 'expired';
+        if (order.status === 'pending') await store.setStatus(order.id, 'expired');
         summary = 'Checkout expired';
         break;
       case 'checkout.session.completed':
@@ -69,9 +69,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       default:
         break;
     }
-    order.webhooks.unshift({ event_id: event.id, type: event.type, received_at: new Date().toISOString(), summary });
-    order.webhooks = order.webhooks.slice(0, 20);
-    await store.put(order);
+    await store.addWebhook(order.id, { event_id: event.id, type: event.type, received_at: new Date().toISOString(), summary });
   }
   await store.markEvent(event.id);
   return json({ received: true, order_id: order?.id ?? null });

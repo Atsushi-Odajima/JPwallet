@@ -22,6 +22,7 @@ interface EventObject {
  *   1. 生の本文で署名検証（必須）
  *   2. イベント ID で重複排除
  *   3. payment.succeeded → 支払済 / payment.refunded → 返金 / checkout.session.expired → 期限切れ
+ * 状態と受信ログは別キーに保存するので、複数の Webhook が同時に届いても更新が失われない。
  */
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!env.PAYCCOUNT_WEBHOOK_SECRET) {
@@ -51,16 +52,15 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     let summary: string = event.type;
     switch (event.type) {
       case 'payment.succeeded':
-        order.status = 'paid';
-        order.payment_id = obj.id ?? null;
+        await store.setStatus(order.id, 'paid', obj.id ?? null);
         summary = `支払済（${obj.source_currency} ${obj.source_amount} → ${obj.settlement_currency} ${obj.settlement_amount}）`;
         break;
       case 'payment.refunded':
-        order.status = obj.status === 'refunded' ? 'refunded' : 'partially_refunded';
+        await store.setStatus(order.id, obj.status === 'refunded' ? 'refunded' : 'partially_refunded');
         summary = `返金 ${obj.refund?.amount ?? ''} ${obj.refund?.currency ?? ''}（累計 ${obj.refunded_amount ?? ''}）`;
         break;
       case 'checkout.session.expired':
-        if (order.status === 'pending') order.status = 'expired';
+        if (order.status === 'pending') await store.setStatus(order.id, 'expired');
         summary = 'Checkout の期限切れ';
         break;
       case 'checkout.session.completed':
@@ -69,9 +69,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       default:
         break;
     }
-    order.webhooks.unshift({ event_id: event.id, type: event.type, received_at: new Date().toISOString(), summary });
-    order.webhooks = order.webhooks.slice(0, 20);
-    await store.put(order);
+    await store.addWebhook(order.id, { event_id: event.id, type: event.type, received_at: new Date().toISOString(), summary });
   }
   await store.markEvent(event.id);
   return json({ received: true, order_id: order?.id ?? null });
