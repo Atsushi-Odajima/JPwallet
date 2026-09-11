@@ -139,13 +139,13 @@ mockRoutes.post('/mock/crypto/deposit', async (c) => {
 /** POST /mock/maintenance/run — Cron 相当の保守処理（期限切れ Quote 掃除・Webhook 再送）を手動実行 */
 mockRoutes.post('/mock/maintenance/run', async (c) => {
   const { runMaintenance } = await import('../services/maintenance');
-  const result = await runMaintenance(c.var.db, c.var.config, fetch, new Date());
+  const result = await runMaintenance(c.var.db, c.var.config, c.var.fetcher, new Date());
   return c.json(result);
 });
 
 /** POST /mock/rates/refresh — RATES_PROVIDER=live なら外部から取得、mock ならシード値に戻す */
 mockRoutes.post('/mock/rates/refresh', async (c) => {
   const { refreshRates } = await import('../services/rates');
-  const result = await refreshRates(c.var.db, c.var.config, fetch);
+  const result = await refreshRates(c.var.db, c.var.config, c.var.fetcher);
   return c.json(result);
 });

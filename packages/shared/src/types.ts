@@ -316,12 +316,16 @@ export interface Payment {
   source_amount: MinorAmount;
   settlement_currency: CurrencyCode;
   settlement_amount: MinorAmount;
+  /** 1 source = fx_rate settlement（スプレッド込みの実効レート） */
   fx_rate: string;
+  mid_rate: string;
+  spread_bps: number;
   fee_amount: MinorAmount;
   fee_bps: number;
   net_amount: MinorAmount;
   status: PaymentStatus;
   refunded_amount: MinorAmount;
+  refunded_source_amount: MinorAmount;
   metadata: Record<string, unknown>;
   created_at: string;
   demo: true;
@@ -452,4 +456,6 @@ export interface CheckoutView {
   merchant: { id: string; name: string; country: string; website_url: string | null };
   sources: CheckoutSourceOption[];
   payment: Payment | null;
+  /** 完了済み Session を、決済したユーザー本人が見ているか */
+  is_payer: boolean;
 }

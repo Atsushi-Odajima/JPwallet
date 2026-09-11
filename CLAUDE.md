@@ -499,11 +499,11 @@ redirectToCheckout(session.id);
 - [x] 履歴・残高表示
 
 ### Phase 5 — 加盟店 API + Checkout
-- [ ] merchants / api_keys、`/admin/merchants`、キー認証ミドルウェア、冪等性ミドルウェア、レート制限
-- [ ] `/v1/checkout/sessions`、Checkout ページ、`execute_payment` RPC（異通貨・PT 対応）
-- [ ] `/v1/payments`、返金、`/v1/balance`
-- [ ] Webhook: エンドポイント登録、署名、非同期配信、リトライ、再送
-- [ ] 加盟店ダッシュボード一式
+- [x] merchants / api_keys、`/admin/merchants`、キー認証ミドルウェア、冪等性ミドルウェア、レート制限
+- [x] `/v1/checkout/sessions`、Checkout ページ、`execute_payment` RPC（異通貨・PT 対応）
+- [x] `/v1/payments`、返金、`/v1/balance`
+- [x] Webhook: エンドポイント登録、署名、非同期配信、リトライ、再送
+- [x] 加盟店ダッシュボード一式
 
 ### Phase 6 — SDK + サンプルEC
 - [ ] packages/sdk（サーバー / ブラウザ / webhooks）
@@ -568,6 +568,7 @@ redirectToCheckout(session.id);
 - **2026-09-11 Phase 2 完了** — `0003_multicurrency.sql`: USD/EUR/GBP 追加、`rates`（X/JPY で保存、`get_rate` が逆数・JPY 経由クロスを計算、PT は JPY 等価）、`set_rate` / `reseed_rates` / `list_rates`、`convert_minor`（切り捨て）/ `convert_minor_ceil`、`convert_to_jpy` をレート対応に置換、`fx_quotes`（`qt_` ID、実効レート = ミッド × (1 − spread)、60 秒）、`create_fx_quote` / `execute_fx_quote`（user from − / fx_pool from + / fx_pool to − / user to +、冪等、期限切れは `quote_expired` → 410）/ `expire_fx_quotes`。API: `GET /rates`（公開）、`/me/fx/quotes*`、`/mock/rates/set|refresh`、`/mock/maintenance/run`、Cron の `scheduled` で保守処理。Web: `/exchange`（Quote → 残り秒数 → 実行、レート一覧、両替履歴）、ホームの総資産が JPY 換算に。テスト 45 件（api）。Playwright で JPY 3,000 → USD 19.90 の両替と総資産 ¥4,985 を確認。
 - **2026-09-11 Phase 3 完了** — `0004_crypto.sql`: BTC（8 桁）/ ETH（18 桁）追加とレートシード、`crypto_orders`（成行・即時約定、buy は mid × 1.01 / sell は mid × 0.99、`crypto_custody` 勘定と 4 行仕訳）、`crypto_deposit_addresses`（ユーザー × 資産で決定的な偽アドレス）、`crypto_deposits`（`process_crypto_deposit`、tx hash で冪等）、`crypto_withdrawals`（アドレス形式検証、fake tx hash、通知）。換算ヘルパーを `div()` ベースに書き換えて wei 精度の丸め誤差を排除（`convert_minor` / `_ceil` / `_div` / `_div_ceil`）。API: `GET /crypto/prices`（ミッド・買値・売値）、`/me/crypto/orders|deposit-address|deposits|withdrawals`、`/mock/crypto/set-price|deposit`。`RATES_PROVIDER=live`: Frankfurter（USD/EUR/GBP → JPY）+ CoinGecko（BTC/ETH → JPY）を Cron で 5 分ごとに取得し、失敗した通貨は前回値を維持（偽 fetch でテスト）。Web: `/crypto`（価格カード、購入 / 売却、入金アドレス + 入金シミュレート、出金、売買履歴）。テスト 59 件（api）。Playwright で BTC 購入 → 入金 → 出金 → 総資産 ¥164,900 を確認。
 - **2026-09-11 Phase 4 完了** — `0005_points.sql`: PT 通貨、`point_campaigns`（シード: +1% / ¥10,000 以上 +3%、`pick_point_campaign` は最大ボーナスを選ぶ）、`point_purchases`、`purchase_points`（wallet_jpy: user JPY − / card: card_clearing − → points_issuer JPY +、points_issuer PT −granted / user PT +granted、ボーナスは points_issuer が無裏付けで発行、Idempotency-Key 対応、失敗カードは失敗履歴）、bank_transfer は識別コード `PTxxxxxxxx` を発行して pending にし、`process_bank_deposit` を拡張（`p_reference` または振込人名から抽出 → 金額一致で PT 付与、不一致なら通常チャージ + note）。`create_point_campaign` / `list_point_campaigns`。カード検証を `lib/cards.ts` に共通化。API: `/me/points/campaigns|purchase|purchases`、`/admin/point-campaigns`（GET/POST、管理者のみ）、`/mock/bank/deposit` に `reference`。Web: `/points`（残高、キャンペーン、購入フォーム 3 経路、保留中の振込 + 入金シミュレート、購入履歴）。テスト 73 件（api）。Playwright で JPY 残高購入 → 銀行振込購入 → 入金照合で 6,060 PT を確認。
+- **2026-09-11 Phase 5 完了** — `0006_merchants.sql`: merchants / api_keys（SHA-256 ハッシュのみ保存、平文は発行時のみ）/ checkout_sessions（`cs_`、`(merchant_id, idempotency_key)` 一意、30 分）/ payments（`pay_`）/ refunds（`re_`）/ webhook_endpoints（`wh_`、`whsec_`）/ webhook_events（`evt_`）/ webhook_deliveries（`whd_`、エンドポイントごとの配信）/ idempotency_keys / api_rate_limits / api_request_logs / audit_logs。RPC: `authenticate_api_key`、`bump_rate_limit`（60 req/分・固定ウィンドウ）、`idempotency_lookup|store`、`create_checkout_session`（通貨は精算通貨と一致必須）、`get_checkout_view`（ソースごとの必要額 = `compute_source_amount`: 同通貨・PT→JPY はそのまま、異通貨はミッド × (1 − スプレッド) で切り上げ）、`execute_payment`（1 トランザクションで user source − → fx_pool / crypto_custody / points_issuer 経由 → merchant +net、fee_revenue +fee、`payment.succeeded` + `checkout.session.completed` をキュー、冪等）、`refund_payment`（元通貨で按分返金、最後は残り全額、手数料は返さない（config で切替）、累計超過は 400、加盟店残高不足は 402）、Webhook: `enqueue_webhook_event` / `claim_webhook_deliveries`（skip locked）/ `record_webhook_delivery`（1分,5分,30分,2時間,12時間・最大 5 回）/ `resend_webhook_event` / `expire_checkout_sessions`。API: `/v1/*`（APIキー認証 + POST は Idempotency-Key 必須、再送は `Idempotency-Replayed: true`、異なるボディは 409）、`/me/checkout/sessions/:id(/confirm|/cancel)`、`/me/merchants/*`（ダッシュボード用、オーナー/管理者）、`/admin/merchants`。Webhook 署名は `packages/shared/webhooks.ts`（`signWebhookPayload` / `verifyWebhookSignature`）で API と SDK が共有。配信は決済直後（`waitUntil`）+ Cron。Web: `/checkout/:sessionId`（ソース選択・換算額・残高不足は非活性・支払い → success_url へ）、`/merchant`（概要 / 決済と返金 / 開発者: APIキー・Webhook・イベントログ・再送・リクエストログ / ドキュメント / 設定 / 加盟店追加）。テスト 102 件（api）。Playwright で 加盟店登録 → キー発行 → Webhook 登録 → API で Session 作成 → Checkout 支払い → success_url リダイレクト → 署名付き Webhook 3 件受信 → 返金 を確認。
 
 ## 15. 管理者アカウント
 id:kuro

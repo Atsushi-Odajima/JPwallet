@@ -24,11 +24,20 @@ export type AppEnv = {
   Variables: {
     db: Db;
     config: AppConfig;
+    /** 外部 HTTP（Webhook 配信・レート取得）に使う fetch。テストで差し替え可 */
+    fetcher: typeof fetch;
     requestId: string;
     user?: AuthUser;
     apiKey?: ApiKeyContext;
     /** 加盟店 API で使う冪等キー */
     idempotencyKey?: string;
+    /**
+     * レスポンス後に実行するバックグラウンド処理（Webhook 配信など）。
+     * Workers では executionCtx.waitUntil、テストではインラインで await される。
+     */
+    background: (task: (db: Db) => Promise<void>) => void;
+    /** バックグラウンド処理の完了を待つ（テスト用） */
+    flushBackground: () => Promise<void>;
   };
 };
 

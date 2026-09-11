@@ -1,14 +1,18 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import type { Db } from './db/port';
 import { demoHeaders, errorHandler, notFoundHandler } from './middleware/common';
 import { adminRoutes } from './routes/admin';
 import { authRoutes } from './routes/auth';
+import { checkoutRoutes } from './routes/checkout';
 import { cryptoRoutes } from './routes/crypto';
 import { fxRoutes } from './routes/fx';
 import { meRoutes } from './routes/me';
+import { merchantRoutes } from './routes/merchants';
 import { mockRoutes } from './routes/mock';
 import { pointsRoutes } from './routes/points';
 import { topupRoutes } from './routes/topups';
+import { v1Routes } from './routes/v1';
 import type { AppDeps, AppEnv } from './types';
 
 /**
@@ -17,9 +21,37 @@ import type { AppDeps, AppEnv } from './types';
  */
 export function createApp(deps: AppDeps) {
   const app = new Hono<AppEnv>();
+  const fetcher = deps.fetcher ?? fetch;
 
   app.use('*', async (c, next) => {
     c.set('config', deps.config);
+    c.set('fetcher', fetcher);
+
+    // バックグラウンド処理（Webhook 配信・ログ）。Workers では waitUntil、それ以外はレスポンス前に await
+    const tasks: Promise<void>[] = [];
+    let execCtx: { waitUntil(promise: Promise<unknown>): void } | undefined;
+    try {
+      execCtx = c.executionCtx;
+    } catch {
+      execCtx = undefined;
+    }
+    const runTask = async (task: (db: Db) => Promise<void>) => {
+      const bdb: Db = typeof deps.db === 'function' ? deps.db() : deps.db;
+      try {
+        await task(bdb);
+      } catch (e) {
+        console.error('background task failed', e);
+      } finally {
+        if (typeof deps.db === 'function') await bdb.close();
+      }
+    };
+    c.set('background', (task) => {
+      const p = runTask(task);
+      if (execCtx) execCtx.waitUntil(p);
+      else tasks.push(p);
+    });
+    c.set('flushBackground', () => Promise.all(tasks).then(() => undefined));
+
     if (typeof deps.db === 'function') {
       // リクエストごとに接続を作り、レスポンス後に閉じる
       const db = deps.db();
@@ -27,15 +59,17 @@ export function createApp(deps: AppDeps) {
       try {
         await next();
       } finally {
-        try {
-          c.executionCtx.waitUntil(db.close());
-        } catch {
-          await db.close();
-        }
+        if (!execCtx) await Promise.all(tasks);
+        if (execCtx) execCtx.waitUntil(db.close());
+        else await db.close();
       }
     } else {
       c.set('db', deps.db);
-      await next();
+      try {
+        await next();
+      } finally {
+        if (!execCtx) await Promise.all(tasks);
+      }
     }
   });
   app.use('*', demoHeaders);
@@ -56,7 +90,7 @@ export function createApp(deps: AppDeps) {
         return undefined;
       },
       allowHeaders: ['Authorization', 'Content-Type', 'Idempotency-Key', 'X-Request-Id'],
-      exposeHeaders: ['X-Demo-Mode', 'X-Request-Id', 'Idempotency-Replayed'],
+      exposeHeaders: ['X-Demo-Mode', 'X-Request-Id', 'Idempotency-Replayed', 'X-RateLimit-Limit', 'X-RateLimit-Remaining'],
       allowMethods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
       maxAge: 600,
     }),
@@ -88,6 +122,9 @@ export function createApp(deps: AppDeps) {
   app.route('/', fxRoutes);
   app.route('/', cryptoRoutes);
   app.route('/', pointsRoutes);
+  app.route('/', checkoutRoutes);
+  app.route('/', merchantRoutes);
+  app.route('/', v1Routes);
   app.route('/', mockRoutes);
   app.route('/', adminRoutes);
 
