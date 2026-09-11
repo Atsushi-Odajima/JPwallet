@@ -94,6 +94,45 @@ mockRoutes.post('/mock/rates/set', async (c) => {
   return c.json(rate);
 });
 
+/** POST /mock/crypto/set-price — クリプト価格を動かす { asset, quote, price } */
+mockRoutes.post('/mock/crypto/set-price', async (c) => {
+  const body = await parseBody(
+    c,
+    z.object({
+      asset: z.enum(['BTC', 'ETH']),
+      quote: z.literal('JPY').default('JPY'),
+      price: z.string().refine((s) => /^\d+(\.\d+)?$/.test(s) && Number(s) > 0, 'price は正の 10 進数文字列で指定してください'),
+    }),
+  );
+  const rate = await c.var.db.rpc('set_rate', { p_base: body.asset, p_quote: body.quote, p_rate: body.price, p_source: 'mock' });
+  return c.json(rate);
+});
+
+/**
+ * POST /mock/crypto/deposit — 模擬ネットワークからの入金 { asset, to_address, amount, tx_hash?, from_address? }
+ * TODO(real): 実際のブロックチェーン監視はスコープ外（デモ）
+ */
+mockRoutes.post('/mock/crypto/deposit', async (c) => {
+  const body = await parseBody(
+    c,
+    z.object({
+      asset: z.enum(['BTC', 'ETH']),
+      to_address: z.string().trim().min(10).max(120),
+      amount: minorAmount,
+      tx_hash: z.string().trim().min(8).max(80).optional(),
+      from_address: z.string().trim().max(120).optional(),
+    }),
+  );
+  const result = await c.var.db.rpc<{ status: string }>('process_crypto_deposit', {
+    p_asset: body.asset,
+    p_to_address: body.to_address,
+    p_amount: body.amount,
+    p_tx_hash: body.tx_hash ?? null,
+    p_from_address: body.from_address ?? null,
+  });
+  return c.json(result, result.status === 'duplicate' ? 200 : 201);
+});
+
 /** POST /mock/maintenance/run — Cron 相当の保守処理（期限切れ Quote 掃除・Webhook 再送）を手動実行 */
 mockRoutes.post('/mock/maintenance/run', async (c) => {
   const { runMaintenance } = await import('../services/maintenance');

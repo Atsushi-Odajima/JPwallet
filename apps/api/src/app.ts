@@ -3,6 +3,7 @@ import { cors } from 'hono/cors';
 import { demoHeaders, errorHandler, notFoundHandler } from './middleware/common';
 import { adminRoutes } from './routes/admin';
 import { authRoutes } from './routes/auth';
+import { cryptoRoutes } from './routes/crypto';
 import { fxRoutes } from './routes/fx';
 import { meRoutes } from './routes/me';
 import { mockRoutes } from './routes/mock';
@@ -84,6 +85,7 @@ export function createApp(deps: AppDeps) {
   app.route('/', meRoutes);
   app.route('/', topupRoutes);
   app.route('/', fxRoutes);
+  app.route('/', cryptoRoutes);
   app.route('/', mockRoutes);
   app.route('/', adminRoutes);
 

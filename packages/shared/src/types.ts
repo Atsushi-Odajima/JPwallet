@@ -195,11 +195,38 @@ export interface FxQuote {
   created_at: string;
 }
 
+export interface CryptoPriceDetail {
+  mid: string;
+  buy: string;
+  sell: string;
+}
+
 export interface CryptoPrices {
   BTC: { JPY: string };
   ETH: { JPY: string };
   spread_bps: number;
+  detail: { BTC: CryptoPriceDetail; ETH: CryptoPriceDetail };
   fetched_at: string;
+}
+
+export interface CryptoDepositAddress {
+  asset: 'BTC' | 'ETH';
+  address: string;
+  network: string;
+  demo: true;
+}
+
+export interface CryptoDeposit {
+  id: string;
+  user_id: string;
+  asset: 'BTC' | 'ETH';
+  amount: MinorAmount;
+  to_address: string;
+  from_address: string | null;
+  fake_tx_hash: string;
+  status: string;
+  journal_id: string | null;
+  created_at: string;
 }
 
 export interface CryptoOrder {

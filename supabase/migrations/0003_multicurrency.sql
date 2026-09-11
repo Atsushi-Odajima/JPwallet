@@ -131,7 +131,8 @@ begin
   select decimals into v_from_dec from currencies where code = p_from;
   select decimals into v_to_dec from currencies where code = p_to;
   if v_from_dec is null or v_to_dec is null or p_rate is null then return null; end if;
-  return floor(p_amount / power(10::numeric, v_from_dec) * p_rate * power(10::numeric, v_to_dec));
+  -- 乗算は numeric で厳密。最後の 10^from_dec での除算だけを div()（切り捨て）で行い丸め誤差を避ける
+  return div(p_amount * p_rate * power(10::numeric, v_to_dec), power(10::numeric, v_from_dec));
 end $$;
 
 -- 切り上げ版（ユーザーが「支払う側」の必要額を出すとき）
@@ -140,11 +141,50 @@ language plpgsql stable set search_path = public as $$
 declare
   v_from_dec int;
   v_to_dec int;
+  v_num numeric;
+  v_den numeric;
+  v_q numeric;
 begin
   select decimals into v_from_dec from currencies where code = p_from;
   select decimals into v_to_dec from currencies where code = p_to;
   if v_from_dec is null or v_to_dec is null or p_rate is null then return null; end if;
-  return ceil(p_amount / power(10::numeric, v_from_dec) * p_rate * power(10::numeric, v_to_dec));
+  v_num := p_amount * p_rate * power(10::numeric, v_to_dec);
+  v_den := power(10::numeric, v_from_dec);
+  v_q := div(v_num, v_den);
+  if v_q * v_den < v_num then v_q := v_q + 1; end if;
+  return v_q;
+end $$;
+
+-- 「価格で割る」版: from_minor → to_minor（p_price は 1 to = p_price from）。切り捨て / 切り上げ
+create or replace function convert_minor_div(p_amount numeric, p_from text, p_to text, p_price numeric) returns numeric
+language plpgsql stable set search_path = public as $$
+declare
+  v_from_dec int;
+  v_to_dec int;
+begin
+  select decimals into v_from_dec from currencies where code = p_from;
+  select decimals into v_to_dec from currencies where code = p_to;
+  if v_from_dec is null or v_to_dec is null or p_price is null or p_price = 0 then return null; end if;
+  return div(p_amount * power(10::numeric, v_to_dec), p_price * power(10::numeric, v_from_dec));
+end $$;
+
+create or replace function convert_minor_div_ceil(p_amount numeric, p_from text, p_to text, p_price numeric) returns numeric
+language plpgsql stable set search_path = public as $$
+declare
+  v_from_dec int;
+  v_to_dec int;
+  v_num numeric;
+  v_den numeric;
+  v_q numeric;
+begin
+  select decimals into v_from_dec from currencies where code = p_from;
+  select decimals into v_to_dec from currencies where code = p_to;
+  if v_from_dec is null or v_to_dec is null or p_price is null or p_price = 0 then return null; end if;
+  v_num := p_amount * power(10::numeric, v_to_dec);
+  v_den := p_price * power(10::numeric, v_from_dec);
+  v_q := div(v_num, v_den);
+  if v_q * v_den < v_num then v_q := v_q + 1; end if;
+  return v_q;
 end $$;
 
 -- JPY 換算（Phase 0 の暫定実装を置き換え）

@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { RequireAuth } from './components/RequireAuth';
 import { UserLayout } from './layouts/UserLayout';
+import { CryptoPage } from './pages/Crypto';
 import { ExchangePage } from './pages/Exchange';
 import { HistoryPage } from './pages/History';
 import { HomePage } from './pages/Home';
@@ -28,6 +29,7 @@ export function App() {
           <Route path="/wallet/:currency" element={<WalletPage />} />
           <Route path="/topup" element={<TopupPage />} />
           <Route path="/exchange" element={<ExchangePage />} />
+          <Route path="/crypto" element={<CryptoPage />} />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
