@@ -1,6 +1,7 @@
 import { ArrowLeftRight, Bitcoin, Clock, Home, Settings, Sparkles, Wallet } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { DemoBanner } from '../components/DemoBanner';
+import { NotificationBell } from '../components/NotificationBell';
 
 const NAV = [
   { to: '/', label: 'ホーム', icon: Home },
@@ -23,9 +24,12 @@ export function UserLayout() {
             <img src="/icons/icon.svg" alt="" className="h-7 w-7 rounded-lg" />
             payCcount
           </NavLink>
-          <NavLink to="/merchant" className="text-xs font-medium text-slate-500 hover:text-brand-600">
-            加盟店ダッシュボード →
-          </NavLink>
+          <div className="flex items-center gap-1">
+            <NavLink to="/merchant" className="text-xs font-medium text-slate-500 hover:text-brand-600">
+              加盟店ダッシュボード →
+            </NavLink>
+            <NotificationBell />
+          </div>
         </div>
       </header>
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-4 pb-24">

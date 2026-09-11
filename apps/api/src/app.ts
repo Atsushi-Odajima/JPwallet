@@ -4,6 +4,8 @@ import { demoHeaders, errorHandler, notFoundHandler } from './middleware/common'
 import { adminRoutes } from './routes/admin';
 import { authRoutes } from './routes/auth';
 import { meRoutes } from './routes/me';
+import { mockRoutes } from './routes/mock';
+import { topupRoutes } from './routes/topups';
 import type { AppDeps, AppEnv } from './types';
 
 /**
@@ -40,7 +42,15 @@ export function createApp(deps: AppDeps) {
       origin: (origin) => {
         const allowed = deps.config.allowedOrigins;
         if (allowed.includes('*')) return origin || '*';
-        return allowed.includes(origin) ? origin : allowed[0] ?? '';
+        if (allowed.includes(origin)) return origin;
+        // 開発の利便性: localhost / 127.0.0.1 は同一視して許可する
+        try {
+          const host = new URL(origin).hostname;
+          if (host === 'localhost' || host === '127.0.0.1') return origin;
+        } catch {
+          /* 不正な origin */
+        }
+        return undefined;
       },
       allowHeaders: ['Authorization', 'Content-Type', 'Idempotency-Key', 'X-Request-Id'],
       exposeHeaders: ['X-Demo-Mode', 'X-Request-Id', 'Idempotency-Replayed'],
@@ -71,6 +81,8 @@ export function createApp(deps: AppDeps) {
   }
 
   app.route('/', meRoutes);
+  app.route('/', topupRoutes);
+  app.route('/', mockRoutes);
   app.route('/', adminRoutes);
 
   return app;

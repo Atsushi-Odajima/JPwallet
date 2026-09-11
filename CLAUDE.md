@@ -480,9 +480,9 @@ redirectToCheckout(session.id);
 - [x] デモバナー、`X-Demo-Mode` ヘッダー
 
 ### Phase 1 — JPY ウォレット
-- [ ] ログイン、ホーム、残高、取引履歴
-- [ ] 模擬カードチャージ（テスト番号）
-- [ ] 模擬銀行振込: 振込先発行 → `/mock/bank/deposit` → 入金通知処理 → 残高反映 → 画面通知
+- [x] ログイン、ホーム、残高、取引履歴
+- [x] 模擬カードチャージ（テスト番号）
+- [x] 模擬銀行振込: 振込先発行 → `/mock/bank/deposit` → 入金通知処理 → 残高反映 → 画面通知
 
 ### Phase 2 — マルチカレンシー
 - [ ] currencies に USD/EUR/GBP、`rates` シード、`/rates`
@@ -564,6 +564,7 @@ redirectToCheckout(session.id);
 （Claude Code がフェーズ完了ごとに追記）
 
 - **2026-09-11 Phase 0 完了** — pnpm workspaces（apps/api, apps/web, packages/shared）、`supabase/migrations/0001_init.sql`（currencies / config / profiles / accounts / journal_entries / ledger_lines / notifications、`post_journal` / `ensure_account` / `ledger_verify` / `get_me` / `list_transactions` など）、`supabase/seed.sql`（管理者 kuro）。ローカル Postgres 用スクリプト `scripts/db/local.sh`（`pnpm db:start|reset|stop|psql`）と auth スタブ。API: Hono + `Db` ポート（Supabase / postgres.js）、デモ認証、`/me`、`/admin/ledger/verify`、`X-Demo-Mode` / `X-Request-Id`、Stripe 風エラー。Web: Vite + React 19 + Tailwind 4 + PWA、デモバナー、ログイン（ユーザー / 管理者タブ）、ホーム。テスト: shared 15 件、api 22 件（台帳の合計 0 / 負残高拒否 / 冪等キー / 同時実行 / ledger_verify、ヘッダー・エラー形式・認証）。`wrangler dev` + ローカル Postgres で疎通確認済み。
+- **2026-09-11 Phase 1 完了** — `0002_wallet_jpy.sql`: topups / virtual_bank_accounts / bank_deposit_notifications、`topup_card`（テスト番号で成功・失敗、Idempotency-Key 対応）、`issue_virtual_bank_account`（7 桁口座番号）、`process_bank_deposit`（通知記録 → external_ref で冪等 → 振込先照合 → 金額検証 → topup + 仕訳 `topup_bank` → ユーザー通知。未照合は `unmatched` として記録し API は 404）。API: `/me/topups/card`、`/me/topups`、`/me/topups/bank/virtual-account`、`/me/topups/bank/deposits`、`/mock/bank/deposit`（`DEMO_MOCK_ENDPOINTS` で有効化）。Web: `/topup`（カード / 銀行振込タブ、入金シミュレート、入金通知履歴）、`/wallet/:currency`、`/history`（種別フィルタ・追加読み込み）、`/settings`、通知ベル（10 秒ポーリング）。テスト 34 件（api）+ Playwright でログイン → カードチャージ → 入金通知 → 履歴 → 通知 → 管理者ログインを画面で確認。
 
 ## 15. 管理者アカウント
 id:kuro

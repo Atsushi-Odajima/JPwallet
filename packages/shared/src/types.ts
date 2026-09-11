@@ -100,6 +100,8 @@ export interface Topup {
   status: TopupStatus;
   provider_ref: string | null;
   failure_reason: string | null;
+  card_last4: string | null;
+  card_brand: string | null;
   journal_id: string | null;
   created_at: string;
 }
@@ -108,6 +110,7 @@ export interface VirtualBankAccount {
   id: string;
   user_id: string;
   bank_name: string;
+  bank_code: string;
   branch_name: string;
   branch_code: string;
   account_type: string;
@@ -121,9 +124,11 @@ export interface BankDepositNotification {
   virtual_account_id: string | null;
   account_number: string;
   amount: MinorAmount;
+  currency: string;
   payer_name: string | null;
   external_ref: string | null;
-  status: 'processed' | 'unmatched' | 'duplicate';
+  status: 'processed' | 'unmatched' | 'duplicate' | 'rejected';
+  reject_reason: string | null;
   received_at: string;
   processed_at: string | null;
   topup_id: string | null;

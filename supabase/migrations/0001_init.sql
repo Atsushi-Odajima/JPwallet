@@ -546,6 +546,7 @@ language sql security definer set search_path = public as $$
   )
 $$;
 
+drop function if exists mark_notifications_read(uuid, uuid[]);
 create or replace function mark_notifications_read(p_user_id uuid, p_ids text[] default null) returns int
 language plpgsql security definer set search_path = public as $$
 declare
