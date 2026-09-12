@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Amount } from '../../components/Amount';
 import { Badge, Card, EmptyState, ErrorText, PageTitle, Spinner, formatDate } from '../../components/ui';
+import { useI18n } from '../../i18n';
+import { paymentStatusLabel } from '../../i18n/labels';
 import { api, errorMessage } from '../../lib/api';
 import { merchantPath, useMerchant } from '../../lib/merchant';
 
@@ -25,14 +27,9 @@ interface Dashboard {
   by_source: { source_currency: string; count: number; settlement_amount: string }[];
 }
 
-export const PAYMENT_STATUS_LABEL: Record<string, { label: string; tone: 'green' | 'amber' | 'slate' }> = {
-  succeeded: { label: '成功', tone: 'green' },
-  partially_refunded: { label: '一部返金', tone: 'amber' },
-  refunded: { label: '返金済', tone: 'slate' },
-};
-
 /** /merchant — 売上サマリ、残高（精算通貨）、直近決済 */
 export function MerchantOverviewPage() {
+  const { t } = useI18n();
   const { merchant } = useMerchant();
   const q = useQuery({
     queryKey: ['merchant', merchant?.id, 'dashboard'],
@@ -49,46 +46,49 @@ export function MerchantOverviewPage() {
 
   return (
     <div className="space-y-4">
-      <PageTitle sub={`${merchant.name} · 精算通貨 ${cur} · 決済手数料 ${merchant.fee_bps / 100}%`}>概要</PageTitle>
+      <PageTitle sub={t('m.overview.subtitle', { name: merchant.name, currency: cur, fee: merchant.fee_bps / 100 })}>{t('m.overview.title')}</PageTitle>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="売上残高（利用可能）" value={<Amount value={available} currency={cur} />} accent />
-        <Stat label="総売上（手数料込み）" value={<Amount value={d.stats.gross_volume} currency={cur} />} sub={`本日 ${fmt(d.stats.gross_volume_today, cur)}`} />
-        <Stat label="決済件数" value={String(d.stats.payments_count)} sub={`本日 ${d.stats.payments_today} 件`} />
-        <Stat label="手数料 / 返金" value={<Amount value={d.stats.fees_total} currency={cur} />} sub={`返金 ${fmt(d.stats.refunded_total, cur)}`} />
+        <Stat label={t('m.overview.available_balance')} value={<Amount value={available} currency={cur} />} accent />
+        <Stat label={t('m.overview.gross_volume')} value={<Amount value={d.stats.gross_volume} currency={cur} />} sub={t('m.overview.today_amount', { amount: fmt(d.stats.gross_volume_today, cur) })} />
+        <Stat label={t('m.overview.payments_count')} value={String(d.stats.payments_count)} sub={t('m.overview.today_count', { n: d.stats.payments_today })} />
+        <Stat label={t('m.overview.fees_refunds')} value={<Amount value={d.stats.fees_total} currency={cur} />} sub={t('m.overview.refunded_amount', { amount: fmt(d.stats.refunded_total, cur) })} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card title="直近の決済" className="lg:col-span-2" action={<Link to="/merchant/payments" className="text-xs text-brand-600">すべて見る</Link>}>
-          {d.recent_payments.length === 0 && <EmptyState>決済はまだありません。「開発者」で APIキーを発行し、Checkout Session を作成してください。</EmptyState>}
+        <Card title={t('m.overview.recent_payments')} className="lg:col-span-2" action={<Link to="/merchant/payments" className="text-xs text-brand-600">{t('common.view_all')}</Link>}>
+          {d.recent_payments.length === 0 && <EmptyState>{t('m.overview.no_payments')}</EmptyState>}
           {d.recent_payments.length > 0 && (
             <div className="overflow-x-auto">
               <table className="w-full whitespace-nowrap text-sm [&_td]:pr-3 [&_th]:pr-3">
                 <thead className="text-left text-xs text-slate-500">
                   <tr>
-                    <th className="py-1">日時</th>
-                    <th>注文</th>
-                    <th>支払</th>
-                    <th className="text-right">精算額</th>
-                    <th className="text-right">状態</th>
+                    <th className="py-1">{t('common.date')}</th>
+                    <th>{t('common.order')}</th>
+                    <th>{t('m.col.paid')}</th>
+                    <th className="text-right">{t('m.col.settlement')}</th>
+                    <th className="text-right">{t('common.status')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {d.recent_payments.map((p) => (
-                    <tr key={p.id}>
-                      <td className="py-2 text-xs text-slate-500">{formatDate(p.created_at)}</td>
-                      <td className="max-w-40 truncate">{p.order_id ?? p.description ?? '-'}</td>
-                      <td className="text-xs">
-                        <Amount value={p.source_amount} currency={p.source_currency} code symbol={false} trimZeros />
-                      </td>
-                      <td className="text-right font-medium">
-                        <Amount value={p.settlement_amount} currency={p.settlement_currency} />
-                      </td>
-                      <td className="text-right">
-                        <Badge tone={PAYMENT_STATUS_LABEL[p.status]?.tone ?? 'slate'}>{PAYMENT_STATUS_LABEL[p.status]?.label ?? p.status}</Badge>
-                      </td>
-                    </tr>
-                  ))}
+                  {d.recent_payments.map((p) => {
+                    const st = paymentStatusLabel(t, p.status);
+                    return (
+                      <tr key={p.id}>
+                        <td className="py-2 text-xs text-slate-500">{formatDate(p.created_at)}</td>
+                        <td className="max-w-40 truncate">{p.order_id ?? p.description ?? '-'}</td>
+                        <td className="text-xs">
+                          <Amount value={p.source_amount} currency={p.source_currency} code symbol={false} trimZeros />
+                        </td>
+                        <td className="text-right font-medium">
+                          <Amount value={p.settlement_amount} currency={p.settlement_currency} />
+                        </td>
+                        <td className="text-right">
+                          <Badge tone={st.tone}>{st.label}</Badge>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -96,8 +96,8 @@ export function MerchantOverviewPage() {
         </Card>
 
         <div className="space-y-4">
-          <Card title="支払ソース別">
-            {d.by_source.length === 0 && <EmptyState>データなし</EmptyState>}
+          <Card title={t('m.overview.by_source')}>
+            {d.by_source.length === 0 && <EmptyState>{t('m.overview.no_data')}</EmptyState>}
             <ul className="space-y-1 text-sm">
               {d.by_source.map((s) => (
                 <li key={s.source_currency} className="flex justify-between">
@@ -109,47 +109,47 @@ export function MerchantOverviewPage() {
               ))}
             </ul>
           </Card>
-          <Card title="連携状態">
+          <Card title={t('m.overview.integration')}>
             <ul className="space-y-1 text-sm">
               <li className="flex justify-between">
-                <span>有効な APIキー</span>
+                <span>{t('m.overview.active_keys')}</span>
                 <span className="font-medium">{d.stats.api_keys_active}</span>
               </li>
               <li className="flex justify-between">
-                <span>Webhook エンドポイント</span>
+                <span>{t('m.overview.webhook_endpoints')}</span>
                 <span className="font-medium">{d.stats.webhook_endpoints}</span>
               </li>
               <li className="flex justify-between">
-                <span>配信失敗</span>
+                <span>{t('m.overview.failed_deliveries')}</span>
                 <span className={`font-medium ${d.stats.webhook_failed > 0 ? 'text-rose-600' : ''}`}>{d.stats.webhook_failed}</span>
               </li>
               <li className="flex justify-between">
-                <span>未完了の Checkout</span>
+                <span>{t('m.overview.open_sessions')}</span>
                 <span className="font-medium">{d.stats.open_sessions}</span>
               </li>
             </ul>
             <Link to="/merchant/developers" className="mt-3 inline-block text-xs text-brand-600 underline">
-              開発者ページへ →
+              {t('m.overview.to_developers')}
             </Link>
           </Card>
         </div>
       </div>
 
-      <Card title="はじめかた">
+      <Card title={t('m.overview.getting_started')}>
         <ol className="list-decimal space-y-1 pl-5 text-sm text-slate-700">
           <li>
-            <Link to="/merchant/developers" className="text-brand-600 underline">開発者</Link>で APIキー（sk_test_…）を発行し、Webhook エンドポイントを登録する
+            {t('m.overview.step1_before')}<Link to="/merchant/developers" className="text-brand-600 underline">{t('m.overview.step1_link')}</Link>{t('m.overview.step1_after')}
           </li>
           <li>
-            サーバーから <code className="rounded bg-slate-100 px-1">POST /v1/checkout/sessions</code> を呼び、返ってきた <code className="rounded bg-slate-100 px-1">url</code> にお客様をリダイレクトする
+            {t('m.overview.step2_before')}<code className="rounded bg-slate-100 px-1">POST /v1/checkout/sessions</code>{t('m.overview.step2_mid')}<code className="rounded bg-slate-100 px-1">url</code>{t('m.overview.step2_after')}
           </li>
           <li>
-            お客様が payCcount で支払うと <code className="rounded bg-slate-100 px-1">payment.succeeded</code> Webhook が届き、売上残高が {cur} で増える
+            {t('m.overview.step3_before')}<code className="rounded bg-slate-100 px-1">payment.succeeded</code>{t('m.overview.step3_after', { currency: cur })}
           </li>
-          <li>返金は「決済」ページまたは API から。元の支払通貨で決済時レートのまま戻る</li>
+          <li>{t('m.overview.step4')}</li>
         </ol>
         <Link to="/merchant/docs" className="mt-2 inline-block text-xs text-brand-600 underline">
-          統合ガイド・SDK スニペット →
+          {t('m.overview.to_docs')}
         </Link>
       </Card>
     </div>

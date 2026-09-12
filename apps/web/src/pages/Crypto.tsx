@@ -1,8 +1,10 @@
-import { CURRENCIES, formatAmount, formatRate, minorToDecimalString, parseAmount, type CryptoDeposit, type CryptoDepositAddress, type CryptoOrder, type CryptoPrices, type CryptoWithdrawal, type Page } from '@payccount/shared';
+import { formatAmount, formatRate, minorToDecimalString, parseAmount, type CryptoDeposit, type CryptoDepositAddress, type CryptoOrder, type CryptoPrices, type CryptoWithdrawal, type Page } from '@payccount/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { Amount } from '../components/Amount';
 import { Badge, Button, Card, CopyButton, EmptyState, ErrorText, Input, PageTitle, Row, Select, Spinner, SuccessText, formatDate } from '../components/ui';
+import { useI18n } from '../i18n';
+import { currencyName } from '../i18n/labels';
 import { api, errorMessage } from '../lib/api';
 import { useInvalidateWallet, useMe } from '../lib/queries';
 
@@ -10,13 +12,14 @@ type Asset = 'BTC' | 'ETH';
 
 /** /crypto — 価格、購入・売却、入金アドレス、出金（すべて模擬） */
 export function CryptoPage() {
+  const { t, locale } = useI18n();
   const me = useMe();
   const prices = useQuery({ queryKey: ['crypto', 'prices'], queryFn: () => api.get<CryptoPrices>('/crypto/prices'), refetchInterval: 15_000 });
   const [asset, setAsset] = useState<Asset>('BTC');
 
   return (
     <div className="space-y-4">
-      <PageTitle sub="模擬カストディ。実際のブロックチェーンには接続しません">クリプト</PageTitle>
+      <PageTitle sub={t('u.crypto.sub')}>{t('u.crypto.title')}</PageTitle>
 
       <div className="grid grid-cols-2 gap-2">
         {(['BTC', 'ETH'] as Asset[]).map((a) => {
@@ -29,17 +32,14 @@ export function CryptoPage() {
               onClick={() => setAsset(a)}
               className={`rounded-2xl border p-4 text-left shadow-sm transition ${asset === a ? 'border-brand-500 bg-brand-50' : 'border-slate-200 bg-white'}`}
             >
-              <p className="text-xs text-slate-500">{CURRENCIES[a].name}</p>
+              <p className="text-xs text-slate-500">{currencyName(locale, a)}</p>
               <p className="text-lg font-bold">{a}</p>
               {d && <p className="text-sm tabular text-slate-700">¥{formatRate(d.mid, 0)}</p>}
-              {d && (
-                <p className="text-[10px] text-slate-500">
-                  買 ¥{formatRate(d.buy, 0)} / 売 ¥{formatRate(d.sell, 0)}
-                </p>
-              )}
+              {d && <p className="text-[10px] text-slate-500">{t('u.crypto.buy_sell_price', { buy: formatRate(d.buy, 0), sell: formatRate(d.sell, 0) })}</p>}
               {w && (
                 <p className="mt-1 text-xs font-medium text-brand-700">
-                  保有 <Amount value={w.balance} currency={a} symbol={false} trimZeros /> ≈ <Amount value={w.jpy_value} currency="JPY" />
+                  {t('u.crypto.holding')}
+                  <Amount value={w.balance} currency={a} symbol={false} trimZeros /> ≈ <Amount value={w.jpy_value} currency="JPY" />
                 </p>
               )}
             </button>
@@ -56,6 +56,7 @@ export function CryptoPage() {
 }
 
 function TradeCard({ asset, prices }: { asset: Asset; prices?: CryptoPrices }) {
+  const { t } = useI18n();
   const invalidate = useInvalidateWallet();
   const qc = useQueryClient();
   const [side, setSide] = useState<'buy' | 'sell'>('buy');
@@ -79,7 +80,7 @@ function TradeCard({ asset, prices }: { asset: Asset; prices?: CryptoPrices }) {
 
   const price = prices?.detail[asset];
   return (
-    <Card title={`${asset} を${side === 'buy' ? '購入' : '売却'}`}>
+    <Card title={side === 'buy' ? t('u.crypto.trade_title_buy', { asset }) : t('u.crypto.trade_title_sell', { asset })}>
       <form
         className="space-y-3"
         onSubmit={(e: FormEvent) => {
@@ -90,16 +91,16 @@ function TradeCard({ asset, prices }: { asset: Asset; prices?: CryptoPrices }) {
       >
         <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 text-sm font-medium">
           <button type="button" className={`rounded-lg py-1.5 ${side === 'buy' ? 'bg-white shadow text-emerald-700' : 'text-slate-500'}`} onClick={() => setSide('buy')}>
-            購入
+            {t('u.crypto.buy')}
           </button>
           <button type="button" className={`rounded-lg py-1.5 ${side === 'sell' ? 'bg-white shadow text-rose-700' : 'text-slate-500'}`} onClick={() => setSide('sell')}>
-            売却
+            {t('u.crypto.sell')}
           </button>
         </div>
         <div className="grid grid-cols-[1fr_auto] items-end gap-2">
-          <Input label={mode === 'quote' ? '金額（JPY）' : `数量（${asset}）`} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <Input label={mode === 'quote' ? t('u.crypto.amount_jpy') : t('u.crypto.quantity', { asset })} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
           <Select
-            label="指定"
+            label={t('u.crypto.specify')}
             value={mode}
             onChange={(e) => {
               setMode(e.target.value as 'quote' | 'asset');
@@ -112,18 +113,19 @@ function TradeCard({ asset, prices }: { asset: Asset; prices?: CryptoPrices }) {
         </div>
         {price && (
           <p className="text-xs text-slate-500">
-            適用価格: 1 {asset} = ¥{formatRate(side === 'buy' ? price.buy : price.sell, 0)}（スプレッド {(prices?.spread_bps ?? 0) / 100}%）
+            {t('u.crypto.applied_price', { asset, price: formatRate(side === 'buy' ? price.buy : price.sell, 0), pct: (prices?.spread_bps ?? 0) / 100 })}
           </p>
         )}
         <ErrorText>{m.error ? errorMessage(m.error) : null}</ErrorText>
         {result && (
           <SuccessText>
-            {result.side === 'buy' ? '購入' : '売却'}しました: <Amount value={result.asset_amount} currency={result.asset} symbol={false} code trimZeros /> ⇄{' '}
+            {result.side === 'buy' ? t('u.crypto.bought') : t('u.crypto.sold')}
+            <Amount value={result.asset_amount} currency={result.asset} symbol={false} code trimZeros /> ⇄{' '}
             <Amount value={result.quote_amount} currency="JPY" />
           </SuccessText>
         )}
         <Button type="submit" className="w-full" loading={m.isPending} variant={side === 'buy' ? 'primary' : 'danger'}>
-          {side === 'buy' ? '購入する' : '売却する'}
+          {side === 'buy' ? t('u.crypto.buy_submit') : t('u.crypto.sell_submit')}
         </Button>
       </form>
     </Card>
@@ -131,6 +133,7 @@ function TradeCard({ asset, prices }: { asset: Asset; prices?: CryptoPrices }) {
 }
 
 function DepositCard({ asset }: { asset: Asset }) {
+  const { t } = useI18n();
   const invalidate = useInvalidateWallet();
   const qc = useQueryClient();
   const addr = useQuery({ queryKey: ['crypto', 'deposit-address', asset], queryFn: () => api.get<CryptoDepositAddress>(`/me/crypto/deposit-address?asset=${asset}`) });
@@ -140,13 +143,13 @@ function DepositCard({ asset }: { asset: Asset }) {
   const sim = useMutation({
     mutationFn: () => api.post<{ status: string }>('/mock/crypto/deposit', { asset, to_address: addr.data!.address, amount: parseAmount(amount, asset) }),
     onSuccess: (r) => {
-      setMsg(r.status === 'processed' ? '模擬ネットワーク上で入金が確認されました' : r.status);
+      setMsg(r.status === 'processed' ? t('u.crypto.deposit_confirmed') : r.status);
       invalidate();
       qc.invalidateQueries({ queryKey: ['crypto', 'deposits'] });
     },
   });
   return (
-    <Card title={`${asset} 入金アドレス（模擬）`}>
+    <Card title={t('u.crypto.deposit_title', { asset })}>
       {addr.isLoading && <Spinner />}
       {addr.data && (
         <div className="flex items-center gap-2 rounded-lg bg-slate-50 p-3">
@@ -162,9 +165,9 @@ function DepositCard({ asset }: { asset: Asset }) {
           sim.mutate();
         }}
       >
-        <Input label={`入金をシミュレート（${asset}）`} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+        <Input label={t('u.crypto.simulate_deposit', { asset })} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
         <Button type="submit" variant="secondary" loading={sim.isPending} disabled={!addr.data}>
-          入金
+          {t('u.crypto.deposit_submit')}
         </Button>
       </form>
       <ErrorText>{sim.error ? errorMessage(sim.error) : null}</ErrorText>
@@ -184,6 +187,7 @@ function DepositCard({ asset }: { asset: Asset }) {
 }
 
 function WithdrawCard({ asset }: { asset: Asset }) {
+  const { t } = useI18n();
   const invalidate = useInvalidateWallet();
   const [amount, setAmount] = useState('');
   const [address, setAddress] = useState('');
@@ -196,7 +200,7 @@ function WithdrawCard({ asset }: { asset: Asset }) {
     },
   });
   return (
-    <Card title={`${asset} 出金（模擬）`}>
+    <Card title={t('u.crypto.withdraw_title', { asset })}>
       <form
         className="space-y-3"
         onSubmit={(e: FormEvent) => {
@@ -205,37 +209,38 @@ function WithdrawCard({ asset }: { asset: Asset }) {
           m.mutate();
         }}
       >
-        <Input label="送金先アドレス" placeholder={asset === 'BTC' ? 'bc1q...' : '0x...'} value={address} onChange={(e) => setAddress(e.target.value)} />
-        <Input label={`数量（${asset}）`} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+        <Input label={t('u.crypto.to_address')} placeholder={asset === 'BTC' ? 'bc1q...' : '0x...'} value={address} onChange={(e) => setAddress(e.target.value)} />
+        <Input label={t('u.crypto.quantity', { asset })} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
         <ErrorText>{m.error ? errorMessage(m.error) : null}</ErrorText>
         {result && (
           <div className="rounded-lg bg-emerald-50 p-3 text-xs text-emerald-800">
-            <p className="font-semibold">送信しました（模擬）</p>
+            <p className="font-semibold">{t('u.crypto.sent')}</p>
             <Row label="TX Hash" value={result.fake_tx_hash} mono />
           </div>
         )}
         <Button type="submit" variant="secondary" className="w-full" loading={m.isPending}>
-          出金する
+          {t('u.crypto.withdraw_submit')}
         </Button>
-        <p className="text-[10px] text-slate-400">実際の送金は行われません。TX Hash はランダム生成です。</p>
+        <p className="text-[10px] text-slate-400">{t('u.crypto.withdraw_note')}</p>
       </form>
     </Card>
   );
 }
 
 function OrdersCard() {
+  const { t } = useI18n();
   const q = useQuery({ queryKey: ['crypto', 'orders'], queryFn: () => api.get<Page<CryptoOrder>>('/me/crypto/orders') });
   return (
-    <Card title="売買履歴">
+    <Card title={t('u.crypto.orders_title')}>
       {q.isLoading && <Spinner />}
-      {q.data && q.data.data.length === 0 && <EmptyState>売買履歴はありません</EmptyState>}
+      {q.data && q.data.data.length === 0 && <EmptyState>{t('u.crypto.no_orders')}</EmptyState>}
       {q.data && q.data.data.length > 0 && (
         <ul className="divide-y divide-slate-100 text-sm">
           {q.data.data.map((o) => (
             <li key={o.id} className="flex items-center justify-between py-2">
               <div>
                 <p className="font-medium">
-                  <Badge tone={o.side === 'buy' ? 'green' : 'red'}>{o.side === 'buy' ? '購入' : '売却'}</Badge> {o.asset}
+                  <Badge tone={o.side === 'buy' ? 'green' : 'red'}>{o.side === 'buy' ? t('u.crypto.buy') : t('u.crypto.sell')}</Badge> {o.asset}
                 </p>
                 <p className="text-xs text-slate-500">
                   {formatDate(o.created_at)} · @¥{formatRate(o.price, 0)}

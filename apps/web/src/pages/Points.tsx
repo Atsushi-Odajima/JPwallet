@@ -4,15 +4,17 @@ import { Sparkles } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Amount } from '../components/Amount';
 import { Badge, Button, Card, CopyButton, EmptyState, ErrorText, Input, PageTitle, Row, Select, Spinner, SuccessText, formatDate } from '../components/ui';
+import { useI18n, type MessageKey } from '../i18n';
 import { api, errorMessage } from '../lib/api';
 import { useInvalidateWallet, useMe } from '../lib/queries';
 
 type Method = 'wallet_jpy' | 'card' | 'bank_transfer';
 const PRESETS = ['1000', '3000', '5000', '10000', '30000'];
-const METHOD_LABEL: Record<Method, string> = { wallet_jpy: 'JPY 残高', card: '模擬カード', bank_transfer: '模擬銀行振込' };
+const METHOD_LABEL: Record<Method, MessageKey> = { wallet_jpy: 'u.points.method.wallet_jpy', card: 'u.points.method.card', bank_transfer: 'u.points.method.bank_transfer' };
 
 /** /points — ポイント購入、キャンペーン表示、残高 */
 export function PointsPage() {
+  const { t } = useI18n();
   const me = useMe();
   const invalidate = useInvalidateWallet();
   const qc = useQueryClient();
@@ -50,26 +52,24 @@ export function PointsPage() {
 
   return (
     <div className="space-y-4">
-      <PageTitle sub="1 PT = 1 JPY 相当。加盟店での決済にのみ使えます（両替・出金・クリプト購入は不可）">ポイント</PageTitle>
+      <PageTitle sub={t('u.points.sub')}>{t('u.points.title')}</PageTitle>
 
       <section className="rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 p-5 text-white shadow-md">
         <p className="flex items-center gap-1 text-xs font-medium text-amber-50">
-          <Sparkles className="h-3.5 w-3.5" /> ポイント残高
+          <Sparkles className="h-3.5 w-3.5" /> {t('u.points.balance')}
         </p>
         <p className="mt-1 text-3xl font-bold tabular">{pt ? <Amount value={pt.balance} currency="PT" symbol={false} code /> : '-'}</p>
       </section>
 
-      <Card title="キャンペーン">
+      <Card title={t('u.points.campaigns_title')}>
         {campaigns.isLoading && <Spinner />}
-        {campaigns.data && campaigns.data.data.length === 0 && <EmptyState>実施中のキャンペーンはありません</EmptyState>}
+        {campaigns.data && campaigns.data.data.length === 0 && <EmptyState>{t('u.points.no_campaigns')}</EmptyState>}
         <ul className="space-y-2">
           {campaigns.data?.data.map((c) => (
             <li key={c.id} className="flex items-center justify-between rounded-lg bg-amber-50 px-3 py-2 text-sm">
               <div>
                 <p className="font-medium text-amber-900">{c.name}</p>
-                <p className="text-xs text-amber-700">
-                  {formatAmount(c.min_amount, 'JPY')} 以上 · {formatDate(c.active_to)} まで
-                </p>
+                <p className="text-xs text-amber-700">{t('u.points.campaign_cond', { min: formatAmount(c.min_amount, 'JPY'), until: formatDate(c.active_to) })}</p>
               </div>
               <Badge tone="amber">+{(Number(c.bonus_rate) * 100).toFixed(1).replace(/\.0$/, '')}%</Badge>
             </li>
@@ -77,7 +77,7 @@ export function PointsPage() {
         </ul>
       </Card>
 
-      <Card title="ポイントを購入">
+      <Card title={t('u.points.buy_title')}>
         <form
           className="space-y-3"
           onSubmit={(e: FormEvent) => {
@@ -87,7 +87,7 @@ export function PointsPage() {
           }}
         >
           <div>
-            <span className="mb-1 block text-xs font-medium text-slate-600">購入金額（JPY）</span>
+            <span className="mb-1 block text-xs font-medium text-slate-600">{t('u.points.amount')}</span>
             <div className="mb-2 flex flex-wrap gap-1.5">
               {PRESETS.map((p) => (
                 <button
@@ -102,51 +102,49 @@ export function PointsPage() {
             </div>
             <Input inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value)} />
           </div>
-          <Select label="支払方法" value={method} onChange={(e) => setMethod(e.target.value as Method)}>
-            <option value="wallet_jpy">JPY 残高から{jpy ? `（残高 ${formatAmount(jpy.balance, 'JPY')}）` : ''}</option>
-            <option value="card">模擬カード</option>
-            <option value="bank_transfer">模擬銀行振込（入金通知で付与）</option>
+          <Select label={t('u.points.method_label')} value={method} onChange={(e) => setMethod(e.target.value as Method)}>
+            <option value="wallet_jpy">{jpy ? t('u.points.option.wallet_jpy_with_balance', { balance: formatAmount(jpy.balance, 'JPY') }) : t('u.points.option.wallet_jpy')}</option>
+            <option value="card">{t('u.points.method.card')}</option>
+            <option value="bank_transfer">{t('u.points.option.bank_transfer')}</option>
           </Select>
           {method === 'card' && (
             <Input
-              label="カード番号（テスト）"
+              label={t('u.points.card_number')}
               value={number}
               onChange={(e) => setNumber(e.target.value)}
-              hint={`成功: ${TEST_CARDS.success} / 失敗: ${TEST_CARDS.declined}`}
+              hint={t('u.points.card_hint', { success: TEST_CARDS.success, declined: TEST_CARDS.declined })}
             />
           )}
           {minor && (
             <div className="rounded-lg bg-slate-50 p-3 text-sm">
-              <Row label="付与ポイント" value={<span className="font-semibold">{formatAmount((BigInt(minor) + bonus).toString(), 'PT', { symbol: false, code: true })}</span>} />
-              {best && <Row label="ボーナス" value={`+${bonus.toString()} PT（${best.name}）`} />}
+              <Row label={t('u.points.granted')} value={<span className="font-semibold">{formatAmount((BigInt(minor) + bonus).toString(), 'PT', { symbol: false, code: true })}</span>} />
+              {best && <Row label={t('u.points.bonus')} value={t('u.points.bonus_value', { bonus: bonus.toString(), name: best.name })} />}
             </div>
           )}
           <ErrorText>{buy.error ? errorMessage(buy.error) : null}</ErrorText>
           {result && result.status === 'succeeded' && (
             <SuccessText>
-              {result.points_granted} PT を付与しました{result.bonus_points !== '0' ? `（ボーナス +${result.bonus_points} PT）` : ''}
+              {t('u.points.success', { points: result.points_granted, bonus: result.bonus_points !== '0' ? t('u.points.success_bonus', { n: result.bonus_points }) : '' })}
             </SuccessText>
           )}
-          {result && result.status === 'pending' && (
-            <SuccessText>振込識別コード {result.transfer_reference} を発行しました。下の「保留中の振込」から入金をシミュレートできます。</SuccessText>
-          )}
+          {result && result.status === 'pending' && <SuccessText>{t('u.points.pending_issued', { ref: result.transfer_reference ?? '' })}</SuccessText>}
           <Button type="submit" className="w-full" loading={buy.isPending}>
-            {METHOD_LABEL[method]}で購入
+            {t('u.points.submit', { method: t(METHOD_LABEL[method]) })}
           </Button>
         </form>
       </Card>
 
       <PendingTransfers purchases={purchases.data?.data ?? []} />
 
-      <Card title="購入履歴">
+      <Card title={t('u.points.history_title')}>
         {purchases.isLoading && <Spinner />}
-        {purchases.data && purchases.data.data.length === 0 && <EmptyState>購入履歴はありません</EmptyState>}
+        {purchases.data && purchases.data.data.length === 0 && <EmptyState>{t('u.points.no_history')}</EmptyState>}
         {purchases.data && purchases.data.data.length > 0 && (
           <ul className="divide-y divide-slate-100 text-sm">
             {purchases.data.data.map((p) => (
               <li key={p.id} className="flex items-center justify-between py-2">
                 <div>
-                  <p className="font-medium">{METHOD_LABEL[p.payment_method]}</p>
+                  <p className="font-medium">{t(METHOD_LABEL[p.payment_method])}</p>
                   <p className="text-xs text-slate-500">
                     {formatDate(p.created_at)}
                     {p.transfer_reference ? ` · ${p.transfer_reference}` : ''}
@@ -158,7 +156,7 @@ export function PointsPage() {
                     <span className="ml-1 text-xs text-slate-500">/ {formatAmount(p.paid_amount, 'JPY')}</span>
                   </p>
                   <Badge tone={p.status === 'succeeded' ? 'green' : p.status === 'pending' ? 'amber' : 'red'}>
-                    {p.status === 'succeeded' ? '付与済' : p.status === 'pending' ? '入金待ち' : '失敗'}
+                    {p.status === 'succeeded' ? t('u.points.status.succeeded') : p.status === 'pending' ? t('u.points.status.pending') : t('u.points.status.failed')}
                   </Badge>
                 </div>
               </li>
@@ -171,6 +169,7 @@ export function PointsPage() {
 }
 
 function PendingTransfers({ purchases }: { purchases: PointPurchase[] }) {
+  const { t } = useI18n();
   const invalidate = useInvalidateWallet();
   const qc = useQueryClient();
   const pending = purchases.filter((p) => p.status === 'pending' && p.payment_method === 'bank_transfer');
@@ -185,25 +184,27 @@ function PendingTransfers({ purchases }: { purchases: PointPurchase[] }) {
       api.post<{ status: string; point_purchase: PointPurchase | null; note?: string }>('/mock/bank/deposit', {
         account_number: va.data!.account_number,
         amount: p.paid_amount,
-        payer_name: `${p.transfer_reference} ヤマダ タロウ`,
+        payer_name: t('u.points.sim_payer', { ref: p.transfer_reference ?? '' }),
         reference: p.transfer_reference,
         external_ref: `SIM-${Date.now()}`,
       }),
     onSuccess: (r) => {
-      setMsg(r.point_purchase ? `入金通知を照合し、${r.point_purchase.points_granted} PT を付与しました` : (r.note ?? r.status));
+      setMsg(r.point_purchase ? t('u.points.sim_matched', { points: r.point_purchase.points_granted }) : (r.note ?? r.status));
       invalidate();
       qc.invalidateQueries({ queryKey: ['points', 'purchases'] });
     },
   });
   if (pending.length === 0 && !msg) return null;
   return (
-    <Card title="保留中の振込（入金待ち）">
+    <Card title={t('u.points.pending_title')}>
       <p className="mb-2 text-xs text-slate-500">
-        下記の振込先に、<span className="font-semibold">振込人名の先頭に識別コード</span>を付けて振り込むと、入金通知の照合でポイントが付与されます。
+        {t('u.points.pending_desc_1')}
+        <span className="font-semibold">{t('u.points.pending_desc_2')}</span>
+        {t('u.points.pending_desc_3')}
       </p>
       {va.data && (
         <div className="mb-3 rounded-lg bg-slate-50 p-3 text-xs">
-          <Row label="振込先" value={`${va.data.bank_name} ${va.data.branch_name} ${va.data.account_type} ${va.data.account_number}`} />
+          <Row label={t('u.points.transfer_to')} value={`${va.data.bank_name} ${va.data.branch_name} ${va.data.account_type} ${va.data.account_number}`} />
         </div>
       )}
       <ul className="space-y-2">
@@ -218,7 +219,7 @@ function PendingTransfers({ purchases }: { purchases: PointPurchase[] }) {
               </p>
             </div>
             <Button variant="secondary" loading={sim.isPending} disabled={!va.data} onClick={() => sim.mutate(p)}>
-              入金をシミュレート
+              {t('u.points.simulate_deposit')}
             </Button>
           </li>
         ))}

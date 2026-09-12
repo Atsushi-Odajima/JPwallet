@@ -3,12 +3,14 @@ import { useMutation } from '@tanstack/react-query';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Card, ErrorText, Input, PageTitle, Row, Select, Spinner, SuccessText } from '../components/ui';
+import { useI18n } from '../i18n';
 import { API_URL, api, errorMessage } from '../lib/api';
 import { useAuth } from '../lib/auth-context';
 import { useInvalidateWallet, useMe } from '../lib/queries';
 
 /** /settings — プロフィール、認証情報、ログアウト */
 export function SettingsPage() {
+  const { t } = useI18n();
   const { adapter, session, signOut } = useAuth();
   const me = useMe();
   const invalidate = useInvalidateWallet();
@@ -36,8 +38,8 @@ export function SettingsPage() {
 
   return (
     <div className="space-y-4">
-      <PageTitle>設定</PageTitle>
-      <Card title="プロフィール">
+      <PageTitle>{t('u.settings.title')}</PageTitle>
+      <Card title={t('u.settings.profile')}>
         <form
           className="space-y-3"
           onSubmit={(e: FormEvent) => {
@@ -46,43 +48,43 @@ export function SettingsPage() {
             save.mutate();
           }}
         >
-          <Input label="表示名" value={name} onChange={(e) => setName(e.target.value)} maxLength={50} />
-          <Select label="国" value={country} onChange={(e) => setCountry(e.target.value)}>
-            <option value="JP">日本 (JP)</option>
-            <option value="US">アメリカ (US)</option>
-            <option value="GB">イギリス (GB)</option>
-            <option value="DE">ドイツ (DE)</option>
+          <Input label={t('u.settings.display_name')} value={name} onChange={(e) => setName(e.target.value)} maxLength={50} />
+          <Select label={t('u.settings.country')} value={country} onChange={(e) => setCountry(e.target.value)}>
+            <option value="JP">{t('u.settings.country.JP')}</option>
+            <option value="US">{t('u.settings.country.US')}</option>
+            <option value="GB">{t('u.settings.country.GB')}</option>
+            <option value="DE">{t('u.settings.country.DE')}</option>
           </Select>
           <ErrorText>{save.error ? errorMessage(save.error) : null}</ErrorText>
-          <SuccessText>{saved ? '保存しました' : null}</SuccessText>
+          <SuccessText>{saved ? t('u.settings.saved') : null}</SuccessText>
           <Button type="submit" loading={save.isPending}>
-            保存
+            {t('common.save')}
           </Button>
         </form>
       </Card>
 
-      <Card title="アカウント">
-        <Row label="メール" value={profile?.email ?? session?.email ?? '-'} />
-        <Row label="ユーザーID" value={profile?.user_id ?? '-'} mono />
-        <Row label="ロール" value={profile?.role === 'admin' ? '管理者' : '一般ユーザー'} />
-        <Row label="認証方式" value={adapter.mode === 'supabase' ? 'Supabase Auth（メール OTP）' : 'デモ認証（メールのみ）'} />
+      <Card title={t('u.settings.account')}>
+        <Row label={t('common.email')} value={profile?.email ?? session?.email ?? '-'} />
+        <Row label={t('u.settings.user_id')} value={profile?.user_id ?? '-'} mono />
+        <Row label={t('u.settings.role')} value={profile?.role === 'admin' ? t('u.settings.role_admin') : t('u.settings.role_user')} />
+        <Row label={t('u.settings.auth_method')} value={adapter.mode === 'supabase' ? t('u.settings.auth_supabase') : t('u.settings.auth_demo')} />
         <Row label="API" value={API_URL} mono />
         {profile?.role === 'admin' && (
           <Link to="/admin" className="mt-2 inline-block text-sm font-medium text-brand-600 underline">
-            管理画面を開く →
+            {t('u.settings.open_admin')}
           </Link>
         )}
         <div className="mt-4">
           <Button variant="danger" onClick={() => signOut()}>
-            ログアウト
+            {t('common.logout')}
           </Button>
         </div>
       </Card>
 
-      <Card title="加盟店として使う">
-        <p className="text-sm text-slate-600">EC サイトに payCcount 決済を組み込む場合は、加盟店ダッシュボードで店舗を登録し APIキーを発行します。</p>
+      <Card title={t('u.settings.merchant_title')}>
+        <p className="text-sm text-slate-600">{t('u.settings.merchant_desc')}</p>
         <Link to="/merchant" className="mt-2 inline-block text-sm font-medium text-brand-600 underline">
-          加盟店ダッシュボードへ →
+          {t('u.settings.to_merchant')}
         </Link>
       </Card>
     </div>

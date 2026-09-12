@@ -104,8 +104,11 @@ export function describeTransaction(t: TFunction, locale: Locale, tx: Transactio
     case 'payment':
       // 決済の説明は加盟店が付けた商品名 / 注文番号（データ）
       return str(meta.order_id) && serverText === '決済' ? String(meta.order_id) : serverText === '決済' ? t('tx.payment') : serverText;
-    case 'refund':
-      return t('tx.refund_of', { what: str(meta.order_id) ?? str(meta.payment_id) ?? '' });
+    case 'refund': {
+      // サーバーの文言「返金（<商品名 / 注文番号>）」から中身だけ取り出して使う
+      const inner = /^返金（(.+)）$/.exec(serverText)?.[1];
+      return t('tx.refund_of', { what: inner ?? str(meta.order_id) ?? str(meta.payment_id) ?? '' });
+    }
     default:
       return serverText;
   }

@@ -4,11 +4,14 @@ import { ArrowDown, RefreshCw } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Amount } from '../components/Amount';
 import { Badge, Button, Card, EmptyState, ErrorText, Input, PageTitle, Row, Select, Spinner, formatDate } from '../components/ui';
+import { useI18n } from '../i18n';
+import { currencyName } from '../i18n/labels';
 import { ApiClientError, api, errorMessage } from '../lib/api';
 import { useInvalidateWallet, useMe } from '../lib/queries';
 
 /** /exchange — 両替（Quote → 確認 → 実行、残り秒数表示） */
 export function ExchangePage() {
+  const { t, locale } = useI18n();
   const me = useMe();
   const invalidate = useInvalidateWallet();
   const rates = useQuery({ queryKey: ['rates'], queryFn: () => api.get<{ data: Rate[] }>('/rates'), refetchInterval: 30_000 });
@@ -57,7 +60,7 @@ export function ExchangePage() {
 
   return (
     <div className="space-y-4">
-      <PageTitle sub="法定通貨（JPY / USD / EUR / GBP）を両替します。見積もりは 60 秒有効です">両替</PageTitle>
+      <PageTitle sub={t('u.exchange.sub')}>{t('u.exchange.title')}</PageTitle>
 
       <Card>
         <form
@@ -69,14 +72,14 @@ export function ExchangePage() {
         >
           <div className="grid grid-cols-[1fr_auto] items-end gap-2">
             <Input
-              label="両替する金額"
+              label={t('u.exchange.amount')}
               inputMode="decimal"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              hint={fromWallet ? `残高: ${minorToDecimalString(fromWallet.balance, from)} ${from}` : undefined}
+              hint={fromWallet ? t('u.exchange.balance_hint', { balance: minorToDecimalString(fromWallet.balance, from), currency: from }) : undefined}
             />
             <Select
-              label="通貨"
+              label={t('common.currency')}
               value={from}
               onChange={(e) => {
                 setFrom(e.target.value);
@@ -93,7 +96,7 @@ export function ExchangePage() {
           <div className="flex justify-center text-slate-400">
             <button
               type="button"
-              aria-label="通貨を入れ替える"
+              aria-label={t('u.exchange.swap')}
               className="rounded-full border border-slate-200 p-2 hover:bg-slate-50"
               onClick={() => {
                 setFrom(to);
@@ -103,34 +106,37 @@ export function ExchangePage() {
               <ArrowDown className="h-4 w-4" />
             </button>
           </div>
-          <Select label="受け取る通貨" value={to} onChange={(e) => setTo(e.target.value)}>
+          <Select label={t('u.exchange.to_currency')} value={to} onChange={(e) => setTo(e.target.value)}>
             {FIAT_CODES.filter((c) => c !== from).map((c) => (
               <option key={c} value={c}>
-                {c} — {CURRENCIES[c].name}
+                {c} — {currencyName(locale, c)}
               </option>
             ))}
           </Select>
           <ErrorText>{createQuote.error ? errorMessage(createQuote.error) : null}</ErrorText>
           <Button type="submit" className="w-full" loading={createQuote.isPending}>
-            見積もりを取得
+            {t('u.exchange.get_quote')}
           </Button>
         </form>
       </Card>
 
       {quote && (
-        <Card title="見積もり" action={<Badge tone={expired ? 'red' : remaining <= 10 ? 'amber' : 'green'}>{expired ? '期限切れ' : `残り ${remaining} 秒`}</Badge>}>
-          <Row label="支払う" value={<Amount value={quote.from_amount} currency={quote.from_currency} code className="font-semibold" />} />
-          <Row label="受け取る" value={<Amount value={quote.to_amount} currency={quote.to_currency} code className="text-lg font-bold text-brand-700" />} />
-          <Row label="適用レート" value={`1 ${quote.from_currency} = ${formatRate(quote.rate, 6)} ${quote.to_currency}`} />
-          <Row label="ミッドレート" value={`${formatRate(quote.mid_rate, 6)}（スプレッド ${quote.spread_bps / 100}%）`} />
-          <Row label="見積もりID" value={quote.id} mono />
+        <Card
+          title={t('u.exchange.quote_title')}
+          action={<Badge tone={expired ? 'red' : remaining <= 10 ? 'amber' : 'green'}>{expired ? t('u.exchange.expired') : t('u.exchange.remaining', { n: remaining })}</Badge>}
+        >
+          <Row label={t('u.exchange.you_pay')} value={<Amount value={quote.from_amount} currency={quote.from_currency} code className="font-semibold" />} />
+          <Row label={t('u.exchange.you_receive')} value={<Amount value={quote.to_amount} currency={quote.to_currency} code className="text-lg font-bold text-brand-700" />} />
+          <Row label={t('u.exchange.applied_rate')} value={`1 ${quote.from_currency} = ${formatRate(quote.rate, 6)} ${quote.to_currency}`} />
+          <Row label={t('u.exchange.mid_rate')} value={t('u.exchange.mid_rate_value', { rate: formatRate(quote.mid_rate, 6), pct: quote.spread_bps / 100 })} />
+          <Row label={t('u.exchange.quote_id')} value={quote.id} mono />
           <ErrorText>{execute.error ? errorMessage(execute.error) : null}</ErrorText>
           <div className="mt-3 flex gap-2">
             <Button className="flex-1" loading={execute.isPending} disabled={!!expired} onClick={() => execute.mutate(quote.id)}>
-              両替を実行
+              {t('u.exchange.execute')}
             </Button>
             <Button variant="secondary" onClick={() => createQuote.mutate()} loading={createQuote.isPending}>
-              <RefreshCw className="h-4 w-4" /> 再見積もり
+              <RefreshCw className="h-4 w-4" /> {t('u.exchange.requote')}
             </Button>
           </div>
         </Card>
@@ -138,14 +144,14 @@ export function ExchangePage() {
 
       {done && (
         <Card>
-          <p className="text-sm font-semibold text-emerald-700">両替が完了しました</p>
+          <p className="text-sm font-semibold text-emerald-700">{t('u.exchange.done')}</p>
           <p className="mt-1 text-sm">
             <Amount value={done.from_amount} currency={done.from_currency} code /> → <Amount value={done.to_amount} currency={done.to_currency} code className="font-semibold" />
           </p>
         </Card>
       )}
 
-      <Card title="現在のレート（スプレッド前）">
+      <Card title={t('u.exchange.rates_title')}>
         {rates.isLoading && <Spinner />}
         {rates.data && (
           <ul className="grid grid-cols-2 gap-2 text-sm">
@@ -166,8 +172,8 @@ export function ExchangePage() {
         )}
       </Card>
 
-      <Card title="両替履歴">
-        {history.data && history.data.data.length === 0 && <EmptyState>両替履歴はありません</EmptyState>}
+      <Card title={t('u.exchange.history_title')}>
+        {history.data && history.data.data.length === 0 && <EmptyState>{t('u.exchange.no_history')}</EmptyState>}
         {history.data && history.data.data.length > 0 && (
           <ul className="divide-y divide-slate-100 text-sm">
             {history.data.data.map((q) => (
@@ -183,7 +189,7 @@ export function ExchangePage() {
                     <Amount value={q.from_amount} currency={q.from_currency} /> → <Amount value={q.to_amount} currency={q.to_currency} className="font-semibold" />
                   </p>
                   <Badge tone={q.status === 'executed' ? 'green' : q.status === 'expired' ? 'slate' : 'amber'}>
-                    {q.status === 'executed' ? '実行済' : q.status === 'expired' ? '期限切れ' : '見積中'}
+                    {q.status === 'executed' ? t('u.exchange.status.executed') : q.status === 'expired' ? t('u.exchange.expired') : t('u.exchange.status.open')}
                   </Badge>
                 </div>
               </li>

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Badge, Card, EmptyState, ErrorText, Spinner, formatDate } from '../../components/ui';
+import { useI18n } from '../../i18n';
 import { api, errorMessage } from '../../lib/api';
 
 interface AuditLog {
@@ -15,24 +16,25 @@ interface AuditLog {
 
 /** /admin/audit — 監査ログ（加盟店作成、APIキー発行/失効、決済、返金、キャンセル） */
 export function AdminAuditPage() {
+  const { t } = useI18n();
   const q = useQuery({ queryKey: ['admin', 'audit'], queryFn: () => api.get<{ data: AuditLog[] }>('/admin/audit-logs'), refetchInterval: 15_000 });
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold">監査ログ</h1>
+      <h1 className="text-xl font-bold">{t('a.audit.title')}</h1>
       <Card>
         {q.isLoading && <Spinner />}
         {q.error && <ErrorText>{errorMessage(q.error)}</ErrorText>}
-        {q.data && q.data.data.length === 0 && <EmptyState>ログはありません</EmptyState>}
+        {q.data && q.data.data.length === 0 && <EmptyState>{t('a.audit.empty')}</EmptyState>}
         {q.data && q.data.data.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full whitespace-nowrap text-xs [&_td]:pr-3 [&_th]:pr-3">
               <thead className="text-left text-slate-500">
                 <tr>
-                  <th className="py-1">日時</th>
-                  <th>アクター</th>
-                  <th>アクション</th>
-                  <th>対象</th>
-                  <th>メタデータ</th>
+                  <th className="py-1">{t('common.date')}</th>
+                  <th>{t('a.audit.th_actor')}</th>
+                  <th>{t('a.audit.th_action')}</th>
+                  <th>{t('a.audit.th_target')}</th>
+                  <th>{t('a.audit.th_metadata')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">

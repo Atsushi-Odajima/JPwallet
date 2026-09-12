@@ -306,7 +306,7 @@ const en: Record<keyof typeof ja, string> = {
   'nav.points': 'Points',
   'nav.history': 'History',
   'nav.settings': 'Settings',
-  'nav.merchant_dashboard': 'Merchant dashboard →',
+  'nav.merchant_dashboard': 'Merchants →',
   'nav.to_wallet': 'To wallet',
   'nav.m.overview': 'Overview',
   'nav.m.payments': 'Payments',

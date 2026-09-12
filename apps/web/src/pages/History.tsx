@@ -2,13 +2,16 @@ import type { Page, Transaction } from '@payccount/shared';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Button, Card, EmptyState, ErrorText, PageTitle, Select, Spinner } from '../components/ui';
+import { useI18n } from '../i18n';
+import { journalTypeLabel } from '../i18n/labels';
 import { api, errorMessage } from '../lib/api';
-import { JOURNAL_TYPE_LABEL, TransactionRow } from './Home';
+import { TransactionRow } from './Home';
 
 const TYPE_OPTIONS = ['', 'topup_card', 'topup_bank', 'points_purchase', 'fx_convert', 'crypto_buy', 'crypto_sell', 'crypto_deposit', 'crypto_withdrawal', 'payment', 'refund'];
 
 /** /history — 統合取引履歴（種別フィルタ・追加読み込み） */
 export function HistoryPage() {
+  const { t } = useI18n();
   const [type, setType] = useState('');
   const q = useInfiniteQuery({
     queryKey: ['me', 'transactions', 'infinite', type],
@@ -26,26 +29,26 @@ export function HistoryPage() {
 
   return (
     <div className="space-y-4">
-      <PageTitle sub="すべての残高変動は複式簿記の仕訳として記録されています">取引履歴</PageTitle>
-      <Select label="種別で絞り込み" value={type} onChange={(e) => setType(e.target.value)}>
-        {TYPE_OPTIONS.map((t) => (
-          <option key={t} value={t}>
-            {t === '' ? 'すべて' : (JOURNAL_TYPE_LABEL[t] ?? t)}
+      <PageTitle sub={t('u.history.sub')}>{t('u.history.title')}</PageTitle>
+      <Select label={t('u.history.filter')} value={type} onChange={(e) => setType(e.target.value)}>
+        {TYPE_OPTIONS.map((opt) => (
+          <option key={opt} value={opt}>
+            {opt === '' ? t('common.all') : journalTypeLabel(t, opt)}
           </option>
         ))}
       </Select>
       <Card>
         {q.isLoading && <Spinner />}
         {q.error && <ErrorText>{errorMessage(q.error)}</ErrorText>}
-        {!q.isLoading && items.length === 0 && <EmptyState>取引はまだありません</EmptyState>}
+        {!q.isLoading && items.length === 0 && <EmptyState>{t('home.no_tx')}</EmptyState>}
         <ul className="divide-y divide-slate-100">
-          {items.map((t) => (
-            <TransactionRow key={t.id} tx={t} />
+          {items.map((row) => (
+            <TransactionRow key={row.id} tx={row} />
           ))}
         </ul>
         {q.hasNextPage && (
           <Button variant="secondary" className="mt-3 w-full" loading={q.isFetchingNextPage} onClick={() => q.fetchNextPage()}>
-            さらに読み込む
+            {t('common.load_more')}
           </Button>
         )}
       </Card>

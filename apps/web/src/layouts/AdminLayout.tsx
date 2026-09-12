@@ -31,8 +31,8 @@ export function AdminLayout() {
               <Activity className="h-3.5 w-3.5 text-emerald-400" /> {session?.email}
             </span>
             <LocaleSwitch dark />
-            <NavLink to="/" className="flex shrink-0 items-center gap-1 whitespace-nowrap font-medium text-brand-300 hover:underline">
-              <Wallet className="h-4 w-4" /> {t('nav.to_wallet')}
+            <NavLink to="/" className="flex shrink-0 items-center gap-1 whitespace-nowrap font-medium text-brand-300 hover:underline" title={t('nav.to_wallet')}>
+              <Wallet className="h-4 w-4" /> <span className="hidden sm:inline">{t('nav.to_wallet')}</span>
             </NavLink>
           </div>
         </div>

@@ -59,7 +59,7 @@ You issue API keys from the merchant dashboard (Developers). The plaintext key i
   "amount": "5980",
   "currency": "JPY",
   "order_id": "ORDER-1001",
-  "description": "商品A ×1",
+  "description": "Item A ×1",
   "success_url": "https://shop.example/thanks?session_id={CHECKOUT_SESSION_ID}",
   "cancel_url": "https://shop.example/cart",
   "accepted_sources": ["JPY", "PT", "USD", "EUR", "GBP", "BTC", "ETH"],

@@ -3,9 +3,9 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Amount } from '../../components/Amount';
 import { Badge, Button, Card, EmptyState, ErrorText, Select, Spinner, formatDate } from '../../components/ui';
+import { useI18n } from '../../i18n';
+import { journalTypeLabel, systemCodeLabel } from '../../i18n/labels';
 import { api, errorMessage } from '../../lib/api';
-import { JOURNAL_TYPE_LABEL } from '../Home';
-import { SYSTEM_CODE_LABEL } from './Overview';
 
 interface AdminJournal {
   id: string;
@@ -42,6 +42,7 @@ const TYPES = ['', 'topup_card', 'topup_bank', 'points_purchase', 'fx_convert', 
 
 /** /admin/ledger — 台帳検証、仕訳ブラウザ、全口座 */
 export function AdminLedgerPage() {
+  const { t } = useI18n();
   const [type, setType] = useState('');
   const verify = useQuery({ queryKey: ['admin', 'verify'], queryFn: () => api.get<Verify>('/admin/ledger/verify') });
   const journals = useInfiniteQuery({
@@ -60,40 +61,40 @@ export function AdminLedgerPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold">台帳（複式簿記）</h1>
-      <Card title="整合性チェック（pnpm ledger:verify と同じ）" action={<Button variant="secondary" className="py-1" onClick={() => verify.refetch()}>再チェック</Button>}>
+      <h1 className="text-xl font-bold">{t('a.ledger.title')}</h1>
+      <Card title={t('a.ledger.verify_title')} action={<Button variant="secondary" className="py-1" onClick={() => verify.refetch()}>{t('a.ledger.recheck')}</Button>}>
         {verify.isLoading && <Spinner />}
         {verify.data && (
           <div className="flex flex-wrap items-center gap-3 text-sm">
-            <Badge tone={verify.data.ok ? 'green' : 'red'}>{verify.data.ok ? 'OK' : 'NG'}</Badge>
-            <span>{verify.data.journal_count} 仕訳 / {verify.data.line_count} 行</span>
-            <span>合計 ≠ 0 の仕訳: {verify.data.unbalanced_journals.length}</span>
-            <span>負残高の user/merchant 口座: {verify.data.negative_accounts.length}</span>
-            <span>balance と集計の不一致: {verify.data.balance_mismatches.length}</span>
+            <Badge tone={verify.data.ok ? 'green' : 'red'}>{verify.data.ok ? t('a.ledger.result_ok') : t('a.ledger.result_ng')}</Badge>
+            <span>{t('a.ledger.counts', { journals: verify.data.journal_count, lines: verify.data.line_count })}</span>
+            <span>{t('a.ledger.unbalanced', { n: verify.data.unbalanced_journals.length })}</span>
+            <span>{t('a.ledger.negative', { n: verify.data.negative_accounts.length })}</span>
+            <span>{t('a.ledger.mismatch', { n: verify.data.balance_mismatches.length })}</span>
             <span className="text-xs text-slate-500">{formatDate(verify.data.checked_at)}</span>
           </div>
         )}
       </Card>
 
-      <Card title="仕訳ブラウザ">
+      <Card title={t('a.ledger.browser')}>
         <div className="mb-3 max-w-xs">
           <Select value={type} onChange={(e) => setType(e.target.value)}>
-            {TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t === '' ? 'すべての種別' : (JOURNAL_TYPE_LABEL[t] ?? t)}
+            {TYPES.map((ty) => (
+              <option key={ty} value={ty}>
+                {ty === '' ? t('a.ledger.all_types') : journalTypeLabel(t, ty)}
               </option>
             ))}
           </Select>
         </div>
         {journals.isLoading && <Spinner />}
         {journals.error && <ErrorText>{errorMessage(journals.error)}</ErrorText>}
-        {!journals.isLoading && items.length === 0 && <EmptyState>仕訳はありません</EmptyState>}
+        {!journals.isLoading && items.length === 0 && <EmptyState>{t('a.ledger.empty')}</EmptyState>}
         <ul className="divide-y divide-slate-100">
           {items.map((j) => (
             <li key={j.id} className="py-2 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="font-medium">
-                  {JOURNAL_TYPE_LABEL[j.type] ?? j.type}
+                  {journalTypeLabel(t, j.type)}
                   {j.reference_type && <span className="ml-2 font-mono text-[10px] text-slate-400">{j.reference_type}:{j.reference_id}</span>}
                 </p>
                 <p className="text-xs text-slate-500">{formatDate(j.created_at)}</p>
@@ -105,7 +106,7 @@ export function AdminLedgerPage() {
                       <td className="w-24 py-0.5">
                         <Badge tone={l.owner_type === 'system' ? 'blue' : l.owner_type === 'merchant' ? 'amber' : 'slate'}>{l.owner_type}</Badge>
                       </td>
-                      <td>{l.owner_type === 'system' ? (SYSTEM_CODE_LABEL[l.owner.replace('system:', '')] ?? l.owner) : l.owner}</td>
+                      <td>{l.owner_type === 'system' ? systemCodeLabel(t, l.owner.replace('system:', '')) : l.owner}</td>
                       <td className="text-right">
                         <Amount value={l.amount} currency={l.currency} colored signed symbol={false} code trimZeros />
                       </td>
@@ -118,29 +119,29 @@ export function AdminLedgerPage() {
         </ul>
         {journals.hasNextPage && (
           <Button variant="secondary" className="mt-3 w-full" loading={journals.isFetchingNextPage} onClick={() => journals.fetchNextPage()}>
-            さらに読み込む
+            {t('common.load_more')}
           </Button>
         )}
       </Card>
 
-      <Card title="全口座">
+      <Card title={t('a.ledger.all_accounts')}>
         {accounts.isLoading && <Spinner />}
         {accounts.data && (
           <div className="max-h-96 overflow-auto">
             <table className="w-full whitespace-nowrap text-xs [&_td]:pr-3 [&_th]:pr-3">
               <thead className="sticky top-0 bg-white text-left text-slate-500">
                 <tr>
-                  <th className="py-1">種別</th>
-                  <th>持ち主</th>
-                  <th>通貨</th>
-                  <th className="text-right">残高</th>
+                  <th className="py-1">{t('a.ledger.th_type')}</th>
+                  <th>{t('a.ledger.th_owner')}</th>
+                  <th>{t('common.currency')}</th>
+                  <th className="text-right">{t('common.balance')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {accounts.data.data.map((a) => (
                   <tr key={a.id}>
                     <td className="py-1">{a.owner_type}</td>
-                    <td>{a.owner_type === 'system' ? (SYSTEM_CODE_LABEL[a.system_code ?? ''] ?? a.system_code) : a.owner}</td>
+                    <td>{a.owner_type === 'system' ? systemCodeLabel(t, a.system_code ?? '') : a.owner}</td>
                     <td>{a.currency}</td>
                     <td className="text-right">
                       <Amount value={a.balance} currency={a.currency} colored trimZeros />
