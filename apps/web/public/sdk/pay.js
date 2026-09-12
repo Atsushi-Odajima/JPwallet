@@ -6,7 +6,8 @@
  * 属性:
  *   data-session  Checkout Session の ID（必須）。加盟店サーバーが POST /v1/checkout/sessions で作成したもの
  *   data-app-url  ウォレットアプリの URL（省略時はこのスクリプトの配信元）
- *   data-label    ボタンの文言（省略時「payCcountで支払う」）
+ *   data-label    ボタンの文言（省略時: 日本語なら「payCcountで支払う」、それ以外は "Pay with payCcount"）
+ *   data-lang     ja | en。Checkout ページの言語（省略時はページの lang / ブラウザ言語）
  *   data-class    独自の class 名（指定するとデフォルトスタイルを付けない）
  */
 (function () {
@@ -25,7 +26,11 @@
       appUrl = window.location.origin;
     }
   }
+  var lang = script.getAttribute('data-lang');
+  var pageLang = (lang || document.documentElement.lang || navigator.language || 'ja').toLowerCase();
+  var isJa = pageLang.indexOf('ja') === 0;
   var url = /^https?:\/\//.test(session) ? session : appUrl.replace(/\/$/, '') + '/checkout/' + encodeURIComponent(session);
+  if (lang === 'ja' || lang === 'en') url += (url.indexOf('?') >= 0 ? '&' : '?') + 'lang=' + lang;
 
   var btn = document.createElement('button');
   btn.type = 'button';
@@ -48,7 +53,7 @@
   icon.style.cssText =
     'display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;background:#fff;color:#1e3a8a;font-weight:800;font-size:14px';
   btn.appendChild(icon);
-  btn.appendChild(document.createTextNode(script.getAttribute('data-label') || 'payCcountで支払う'));
+  btn.appendChild(document.createTextNode(script.getAttribute('data-label') || (isJa ? 'payCcountで支払う' : 'Pay with payCcount')));
   btn.setAttribute('data-payccount-session', session);
   btn.addEventListener('click', function () {
     window.location.assign(url);

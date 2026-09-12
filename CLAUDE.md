@@ -573,6 +573,7 @@ redirectToCheckout(session.id);
 | 2026-09-11 | デプロイは `scripts/deploy/deploy.sh`（Supabase Management API でマイグレーション適用、wrangler で Workers / Pages）に集約。認証情報は環境変数のみ、適用済みマイグレーションは `payccount_meta.migrations` に記録 | 再実行可能で、Claude Code の新しいセッションからも同じ手順で代行できる（`docs/deploy.md`）。Supabase Auth の OTP はテンプレートに `{{ .Token }}` を入れて 6 桁コードを送る（無料枠 + 既定メール送信ではテンプレート変更不可のため、既定の Magic Link でログイン） |
 | 2026-09-11 | JWT 検証はトークンヘッダーの `alg` で分岐: HS256 は `JWT_SECRET`、それ以外は Supabase の JWKS | 新規 Supabase プロジェクトは anon / service_role が HS256（legacy）のまま、ユーザーのアクセストークンは ES256（JWT Signing Keys）で発行される。本番で 401 になったため修正 |
 | 2026-09-11 | `0008_supabase_grants.sql`: `service_role` に public の全テーブル・シーケンス・関数を GRANT（anon / authenticated には付与しない） | Supabase の新規プロジェクトでは `postgres` が作るテーブルの既定権限が service_role に SELECT 等を含まず、`security definer` でないヘルパー（`get_rate_json` など）を PostgREST から呼ぶと permission denied になった。ブラウザは PostgREST を直接使わないため anon には開けない |
+| 2026-09-12 | UI の日英対応は自前の軽量 i18n（`apps/web/src/i18n`）: `useI18n().t(key, params)`、辞書は名前空間別（`common` / `u.` / `m.` / `a.`）で日本語を先に定義し英語は同じキーを型で強制。言語は `?lang` → localStorage → ブラウザ言語。サーバー由来の日本語（取引の説明・通知）は英語では `metadata` / `data` から組み立て、API エラーは `code` で翻訳（`error.*`）。API ドキュメントは `docs/api.en.md` を別ファイルで保持 | ライブラリを足さずバンドルを小さく保ち、キーの欠落をコンパイル時に検出できる。サーバーの文言を変えずに英語化でき、日本語 UI は従来どおり |
 
 ## 14. 進捗ログ
 

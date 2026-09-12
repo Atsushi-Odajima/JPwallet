@@ -1,31 +1,34 @@
 import { ArrowLeftRight, Bitcoin, Clock, Home, Settings, Sparkles, Wallet } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { NotificationBell } from '../components/NotificationBell';
+import { LocaleSwitch, useI18n, type MessageKey } from '../i18n';
 
-const NAV = [
-  { to: '/', label: 'ホーム', icon: Home },
-  { to: '/topup', label: 'チャージ', icon: Wallet },
-  { to: '/exchange', label: '両替', icon: ArrowLeftRight },
-  { to: '/crypto', label: 'クリプト', icon: Bitcoin },
-  { to: '/points', label: 'ポイント', icon: Sparkles },
-  { to: '/history', label: '履歴', icon: Clock },
-  { to: '/settings', label: '設定', icon: Settings },
+const NAV: { to: string; label: MessageKey; icon: typeof Home }[] = [
+  { to: '/', label: 'nav.home', icon: Home },
+  { to: '/topup', label: 'nav.topup', icon: Wallet },
+  { to: '/exchange', label: 'nav.exchange', icon: ArrowLeftRight },
+  { to: '/crypto', label: 'nav.crypto', icon: Bitcoin },
+  { to: '/points', label: 'nav.points', icon: Sparkles },
+  { to: '/history', label: 'nav.history', icon: Clock },
+  { to: '/settings', label: 'nav.settings', icon: Settings },
 ];
 
 /** ユーザー向けレイアウト（モバイルファースト、下部ナビ） */
 export function UserLayout() {
+  const { t } = useI18n();
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
-          <NavLink to="/" className="flex items-center gap-2 font-bold text-brand-800">
+        <div className="mx-auto flex max-w-2xl items-center justify-between gap-2 px-4 py-3">
+          <NavLink to="/" className="flex shrink-0 items-center gap-2 font-bold text-brand-800">
             <img src="/icons/icon.svg" alt="" className="h-7 w-7 rounded-lg" />
             payCcount
           </NavLink>
-          <div className="flex items-center gap-1">
-            <NavLink to="/merchant" className="text-xs font-medium text-slate-500 hover:text-brand-600">
-              加盟店ダッシュボード →
+          <div className="flex min-w-0 items-center gap-2">
+            <NavLink to="/merchant" className="truncate text-xs font-medium text-slate-500 hover:text-brand-600">
+              {t('nav.merchant_dashboard')}
             </NavLink>
+            <LocaleSwitch />
             <NotificationBell />
           </div>
         </div>
@@ -45,7 +48,7 @@ export function UserLayout() {
                 }
               >
                 <Icon className="h-5 w-5" aria-hidden />
-                {label}
+                {t(label)}
               </NavLink>
             </li>
           ))}

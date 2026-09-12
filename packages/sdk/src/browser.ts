@@ -26,13 +26,17 @@ export function redirectToCheckout(sessionIdOrUrl: string, options: BrowserOptio
 export interface PayButtonOptions extends BrowserOptions {
   label?: string;
   className?: string;
+  /** ボタン文言の言語（省略時はページの lang / ブラウザ言語。日本語以外は英語） */
+  lang?: 'ja' | 'en';
 }
 
-/** 「payCcountで支払う」ボタンを描画する */
+/** 「payCcountで支払う」/ "Pay with payCcount" ボタンを描画する */
 export function renderPayButton(container: HTMLElement, sessionIdOrUrl: string, options: PayButtonOptions = {}): HTMLButtonElement {
   const btn = document.createElement('button');
   btn.type = 'button';
-  btn.textContent = options.label ?? 'payCcountで支払う';
+  const pageLang = (options.lang ?? (typeof document !== 'undefined' ? document.documentElement.lang : '') ?? '') || (typeof navigator !== 'undefined' ? navigator.language : 'ja');
+  const isJa = pageLang.toLowerCase().startsWith('ja');
+  btn.textContent = options.label ?? (isJa ? 'payCcountで支払う' : 'Pay with payCcount');
   btn.className = options.className ?? 'payccount-pay-button';
   if (!options.className) {
     btn.style.cssText =

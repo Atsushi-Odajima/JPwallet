@@ -1,5 +1,6 @@
 import { ADMIN_EMAIL_DOMAIN } from '@payccount/shared';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { t } from '../i18n';
 import { API_URL } from './api';
 
 /**
@@ -54,7 +55,7 @@ class DemoAuth implements AuthAdapter {
       body: JSON.stringify(body),
     });
     const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json?.error?.message ?? 'ログインに失敗しました');
+    if (!res.ok) throw new Error(json?.error?.message ?? t('auth.login_failed'));
     const session: Session = {
       accessToken: json.access_token,
       userId: json.user.id,
@@ -71,7 +72,7 @@ class DemoAuth implements AuthAdapter {
     return { needsOtp: false, session };
   }
   async verifyOtp(): Promise<Session> {
-    throw new Error('デモ認証では OTP は不要です');
+    throw new Error(t('auth.no_otp_demo'));
   }
   signInAdmin(id: string, password: string) {
     return this.post('/auth/demo/admin-login', { id, password });
@@ -120,15 +121,15 @@ class SupabaseAuth implements AuthAdapter {
     const { data, error } = await this.client.auth.verifyOtp({ email, token, type: 'email' });
     if (error) throw new Error(error.message);
     const s = this.toSession(data.session);
-    if (!s) throw new Error('セッションを取得できませんでした');
+    if (!s) throw new Error(t('auth.no_session'));
     return s;
   }
   async signInAdmin(id: string, password: string) {
     const email = id.includes('@') ? id : `${id}@${ADMIN_EMAIL_DOMAIN}`;
     const { data, error } = await this.client.auth.signInWithPassword({ email, password });
-    if (error) throw new Error('IDまたはパスワードが正しくありません');
+    if (error) throw new Error(t('auth.bad_credentials'));
     const s = this.toSession(data.session);
-    if (!s) throw new Error('セッションを取得できませんでした');
+    if (!s) throw new Error(t('auth.no_session'));
     return s;
   }
   async signOut() {

@@ -1,4 +1,6 @@
 import type { ApiErrorBody } from '@payccount/shared';
+import { getLocale, t, type MessageKey } from '../i18n';
+import { hasMessage } from '../i18n/messages';
 
 export const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8787').replace(/\/$/, '');
 
@@ -60,7 +62,7 @@ export async function apiFetch<T = unknown>(path: string, opts: RequestOptions =
       res.status,
       err?.type ?? 'api_error',
       err?.code ?? `http_${res.status}`,
-      err?.message ?? `リクエストに失敗しました (${res.status})`,
+      err?.message ?? t('common.request_failed', { status: res.status }),
       err?.param,
       res.headers.get('X-Request-Id') ?? undefined,
     );
@@ -77,8 +79,22 @@ export const api = {
   del: <T>(path: string, opts?: Omit<RequestOptions, 'method' | 'body'>) => apiFetch<T>(path, { ...opts, method: 'DELETE' }),
 };
 
+/**
+ * エラー表示用の文言。日本語はサーバーの message をそのまま、
+ * 英語はエラーコードに対応する文言（i18n の error.*）があればそれを使う。
+ */
 export function errorMessage(e: unknown): string {
-  if (e instanceof ApiClientError) return e.message;
-  if (e instanceof Error) return e.message;
+  if (e instanceof ApiClientError) {
+    if (getLocale() !== 'ja') {
+      const key = `error.${e.code}`;
+      if (hasMessage(key)) return t(key as MessageKey);
+      if (e.code.startsWith('http_')) return t('common.request_failed', { status: e.status });
+    }
+    return e.message;
+  }
+  if (e instanceof Error) {
+    if (getLocale() !== 'ja' && e.name === 'TypeError') return t('common.network_error');
+    return e.message;
+  }
   return String(e);
 }

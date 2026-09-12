@@ -1,5 +1,6 @@
 import { Loader2 } from 'lucide-react';
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react';
+import { getLocale, useI18n } from '../i18n';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
@@ -72,9 +73,10 @@ export function Select({ className = '', label, children, ...rest }: SelectHTMLA
 }
 
 export function Spinner({ className = '' }: { className?: string }) {
+  const { t } = useI18n();
   return (
     <div className={`flex items-center justify-center py-8 text-slate-400 ${className}`}>
-      <Loader2 className="h-6 w-6 animate-spin" aria-label="読み込み中" />
+      <Loader2 className="h-6 w-6 animate-spin" aria-label={t('common.loading')} />
     </div>
   );
 }
@@ -124,20 +126,25 @@ export function Row({ label, value, mono = false }: { label: ReactNode; value: R
   );
 }
 
+/** 日時の表示（現在の言語に合わせる） */
 export function formatDate(iso: string | null | undefined) {
   if (!iso) return '-';
   const d = new Date(iso);
-  return d.toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  if (getLocale() === 'ja') {
+    return d.toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  }
+  return d.toLocaleString('en-US', { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 export function CopyButton({ text }: { text: string }) {
+  const { t } = useI18n();
   return (
     <button
       type="button"
       className="rounded-md border border-slate-300 px-2 py-0.5 text-xs text-slate-600 hover:bg-slate-50"
       onClick={() => navigator.clipboard?.writeText(text)}
     >
-      コピー
+      {t('common.copy')}
     </button>
   );
 }

@@ -2,6 +2,7 @@ import { ADMIN_LOGIN_ID, APP_NAME } from '@payccount/shared';
 import { useState, type FormEvent } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { Button, Card, ErrorText, Input, Spinner } from '../components/ui';
+import { LocaleSwitch, useI18n } from '../i18n';
 import { useAuth } from '../lib/auth-context';
 
 type Tab = 'user' | 'admin';
@@ -9,6 +10,7 @@ type Tab = 'user' | 'admin';
 /** /login — Supabase Auth（メール OTP）またはデモ認証。管理者は ID + パスワード */
 export function LoginPage() {
   const { adapter, session, loading, setSession } = useAuth();
+  const { t } = useI18n();
   const [params] = useSearchParams();
   const next = params.get('next') || '/';
 
@@ -78,10 +80,13 @@ export function LoginPage() {
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-10">
+        <div className="mb-4 flex justify-end">
+          <LocaleSwitch />
+        </div>
         <div className="mb-6 text-center">
           <img src="/icons/icon.svg" alt="" className="mx-auto mb-3 h-16 w-16 rounded-2xl shadow" />
           <h1 className="text-2xl font-bold text-brand-800">{APP_NAME}</h1>
-          <p className="mt-1 text-sm text-slate-500">日本産オンラインEウォレット（デモ）</p>
+          <p className="mt-1 text-sm text-slate-500">{t('app.tagline')}</p>
         </div>
 
         <Card>
@@ -94,7 +99,7 @@ export function LoginPage() {
                 setError(null);
               }}
             >
-              ユーザー
+              {t('login.tab_user')}
             </button>
             <button
               type="button"
@@ -104,40 +109,34 @@ export function LoginPage() {
                 setError(null);
               }}
             >
-              管理者
+              {t('login.tab_admin')}
             </button>
           </div>
 
           {tab === 'user' && !otpSent && (
             <form onSubmit={submitEmail} className="space-y-3">
               <Input
-                label="メールアドレス"
+                label={t('login.email')}
                 type="email"
                 required
                 autoComplete="email"
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                hint={
-                  adapter.mode === 'demo'
-                    ? 'デモ認証: メールアドレスを入力するだけでログインできます（認証コードは送信されません）'
-                    : '入力したメールアドレスにログイン用のリンク（または 6 桁の認証コード）を送ります'
-                }
+                hint={adapter.mode === 'demo' ? t('login.hint_demo') : t('login.hint_supabase')}
               />
               <ErrorText>{error}</ErrorText>
               <Button type="submit" className="w-full" loading={busy}>
-                {adapter.mode === 'demo' ? 'ログイン / 新規登録' : '認証コードを送信'}
+                {adapter.mode === 'demo' ? t('login.submit_demo') : t('login.submit_send_code')}
               </Button>
             </form>
           )}
 
           {tab === 'user' && otpSent && (
             <form onSubmit={submitOtp} className="space-y-3">
-              <p className="text-sm text-slate-600">
-                <span className="font-medium">{email}</span> にメールを送りました。メール内の「ログイン」リンクをタップするとこの画面に戻ってログインします。6 桁のコードが届いた場合は下に入力してください。
-              </p>
+              <p className="text-sm text-slate-600">{t('login.sent', { email })}</p>
               <Input
-                label="認証コード"
+                label={t('login.code')}
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 required
@@ -146,19 +145,19 @@ export function LoginPage() {
               />
               <ErrorText>{error}</ErrorText>
               <Button type="submit" className="w-full" loading={busy}>
-                ログイン
+                {t('login.login')}
               </Button>
               <button type="button" className="w-full text-center text-xs text-slate-500 underline" onClick={() => setOtpSent(false)}>
-                メールアドレスを変更する
+                {t('login.change_email')}
               </button>
             </form>
           )}
 
           {tab === 'admin' && (
             <form onSubmit={submitAdmin} className="space-y-3">
-              <Input label="管理者ID" required autoComplete="username" placeholder={ADMIN_LOGIN_ID} value={adminId} onChange={(e) => setAdminId(e.target.value)} />
+              <Input label={t('login.admin_id')} required autoComplete="username" placeholder={ADMIN_LOGIN_ID} value={adminId} onChange={(e) => setAdminId(e.target.value)} />
               <Input
-                label="パスワード"
+                label={t('login.password')}
                 type="password"
                 required
                 autoComplete="current-password"
@@ -167,9 +166,9 @@ export function LoginPage() {
               />
               <ErrorText>{error}</ErrorText>
               <Button type="submit" className="w-full" loading={busy}>
-                管理者としてログイン
+                {t('login.admin_submit')}
               </Button>
-              <p className="text-xs text-slate-500">管理者は全ユーザー・加盟店・台帳を閲覧できます。</p>
+              <p className="text-xs text-slate-500">{t('login.admin_note')}</p>
             </form>
           )}
         </Card>
