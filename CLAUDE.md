@@ -82,7 +82,10 @@
 │   └── seed.sql
 ├── docs/
 │   ├── api.md                ← 公開API リファレンス（実装から生成 or 手書き）
-│   └── architecture.md
+│   ├── api.en.md             ← 同 英語版
+│   ├── architecture.md
+│   ├── deploy.md             ← デプロイ手順
+│   └── specs/                ← 外部向け仕様書（加盟店 / チャージ用決済代行会社・金融機関 / 運営・管理者、日英）
 └── .env.example
 ```
 
@@ -591,6 +594,7 @@ redirectToCheckout(session.id);
 - **2026-09-11 本番デプロイ完了** — 環境のネットワークを開放後に `deploy.sh` を実行。Supabase（`payCcount`、ap-northeast-1）に 0001〜0008 + seed を適用、Site URL / リダイレクト許可を設定（無料枠のためメールテンプレートは既定の Magic Link のまま）。Workers `payccount-api`（https://payccount-api.kuroatu0130.workers.dev、Cron 毎分）、Pages `payccount-web` / `payccount-shop-jp` / `payccount-shop-global`（KV `*-orders`）。本番で見つけて直した問題: (1) Supabase のアクセストークンが ES256 で API が 401 → `alg` で HS256 / JWKS を切替、(2) `get_rate_json` が permission denied → `0008_supabase_grants.sql`、(3) wrangler 4.131 の `pages project create` が新 Pages へ委譲して失敗 → REST API で作成、(4) `apps/web` に wrangler が無い → `apps/api` のバイナリを共用。本番スイープ: 管理者ログイン → カード ¥50,000 / 銀行振込 ¥3,000（`/mock/bank/deposit`）→ JPY 3,000 → USD 19.90 → BTC ¥10,000（66,006 sat）→ 3,030 PT → Globe Goods $29.99 を BTC 30,293 sat で支払い（加盟店 USD 29.52、fee $0.47）→ Webhook で Paid → $10 返金 → partially_refunded → 模擬出金 → `ledger_verify` OK（仕訳 10 件）。shop-jp も ¥1,200 を JPY 払いで Paid。
 - **2026-09-11 UI 調整（オーナー指示）** — 上部の黄色いデモ帯を全画面から撤去し、デモ表示は TOP ページ最下部のフッターだけに（`DemoBanner` を削除、`DemoFooter` は Home のみ。Login / Settings / Checkout / 加盟店レイアウトのデモ文言も削除）。スマホ幅（390px）で管理者・加盟店画面を Playwright で撮影して修正: 概要の件数カードを 2 列グリッドに、金額は `whitespace-nowrap`（符号と数字の分離を防止）、システム勘定の code を別行に、表は `overflow-x-auto` + `whitespace-nowrap` でカード内横スクロール、グリッド子要素に `min-w-0`（ページ全体の横はみ出しを解消: ユーザー 201px / 加盟店 40px / 加盟店決済 137px → 0）、`Badge` / `Button` を nowrap、`Card` のアクションを `shrink-0`、管理者・加盟店ヘッダーをスマホで折り返さない構成（メールは sm 以上のみ、店舗切替は 2 行目に全幅）。全ページのスクリーンショットで横スクロールなしを確認し、本番 Pages へ再デプロイ。
 - **2026-09-12 英語版（日英対応）** — `apps/web/src/i18n/`（`LocaleProvider` / `useI18n().t` / `LocaleSwitch`、辞書 `messages/{common,user,merchant,admin}.ts`、`labels.ts`）。ユーザー（ホーム・チャージ・両替・クリプト・ポイント・履歴・設定・通貨別）、加盟店（概要・決済・開発者・ドキュメント・登録・設定）、運営（概要・ユーザー・加盟店・決済・台帳・Webhook・キャンペーン・監査ログ）、ログイン、Checkout、404、権限案内、全レイアウトの文言を約 560 キーで日英化。言語は `?lang=ja|en` → localStorage → ブラウザ言語で決め、各ヘッダーの JA / EN で切替。サーバー由来の日本語は英語では `metadata` / `data` から組み立て（取引説明・通知）、API エラーは `code` → `error.*`、日付は言語別フォーマット、通貨名は `nameEn`。`docs/api.en.md`（英訳）を `/merchant/docs` で言語に応じて表示、SDK / `pay.js` のボタン文言も言語で切替。日本語 UI は文言を変えていない（辞書の `ja` は従来文字列そのまま、E2E は `locale: ja-JP`）。スマホ幅で日英全ページを撮影して確認し、typecheck 全パッケージ OK。
+- **2026-09-12 外部向け仕様書（日英）** — `docs/specs/`: 加盟店向け決済接続仕様書（`merchant.ja.md` / `merchant.en.md`: 登録・APIキー・Checkout Session のシーケンスと状態・換算ルール・手数料 1.6%・返金の按分・Webhook 署名 `t,v1` の検証手順と再送 1分→5分→30分→2時間→12時間・冪等性・レート制限・SDK・テスト値・セキュリティ要件・制限事項）、チャージ接続仕様書（`provider.ja.md` / `provider.en.md`: 決済代行会社・金融機関向け。✅ 実装済み（モック）と 🧭 本番仕様を区別し、清算勘定 `card_clearing` / `bank_clearing` の仕訳、A カード決済（テスト番号・本番のオーソリ／売上／Webhook 案）、B 銀行振込（振込先発行・`/mock/bank/deposit` 入金通知の照合フロー・`processed|duplicate|unmatched|rejected`・識別コード `PTxxxxxxxx`）、C 銀行連携（口座連携の 🧭 シーケンスと要件）、精算・突合）、運営・管理者向け仕様書（`admin.ja.md` / `admin.en.md`: 役割・kuro の認証・`/admin/*` 画面と API・台帳モデルと不変条件・Cron 保守処理・`config` 既定値・レート供給・環境変数・Webhook 運用・キャンペーン・監査ログ・セキュリティ・デプロイ・障害対応 runbook）。`docs/specs/README.md` に索引、README からリンク。
 
 ## 15. 管理者アカウント
 id:kuro

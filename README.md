@@ -76,6 +76,7 @@ flowchart LR
 - **残高変更はすべて `post_journal` RPC 経由**。API 層は残高を直接 UPDATE しない。業務処理（決済・返金・両替…）は 1 回の RPC で 1 トランザクション
 - 為替はミッドレート × (1 − スプレッド)。差額は `fx_pool` / `crypto_custody` 勘定に残る。返金は元の支払通貨で決済時の按分
 - 詳細は [docs/architecture.md](docs/architecture.md)、API は [docs/api.md](docs/api.md)、仕様とフェーズ計画・決定事項は [CLAUDE.md](CLAUDE.md)
+- 外部向け仕様書（加盟店 / チャージ用決済代行会社・金融機関 / 運営・管理者、日英）は [docs/specs/](docs/specs/README.md)
 
 ## リポジトリ構成
 
