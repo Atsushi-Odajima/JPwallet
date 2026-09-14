@@ -2,7 +2,7 @@
   "name": "payccount",
   "private": true,
   "version": "0.1.0",
-  "description": "payCcount — 日本産オンラインEウォレット（デモ）",
+  "description": "payCcount (demo)",
   "packageManager": "pnpm@10.33.0",
   "engines": {
     "node": ">=20"

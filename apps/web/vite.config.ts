@@ -11,9 +11,10 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/icon.svg'],
       manifest: {
-        name: 'payCcount（デモ）',
+        // ホーム画面に追加したときの名前は「payCcount」に統一する（デモ表記や説明文は付けない）
+        name: 'payCcount',
         short_name: 'payCcount',
-        description: '日本産オンラインEウォレット（デモ）。これはデモアプリケーションです。',
+        description: 'payCcount',
         lang: 'ja',
         start_url: '/',
         display: 'standalone',

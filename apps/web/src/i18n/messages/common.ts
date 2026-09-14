@@ -5,8 +5,8 @@
  */
 const ja = {
   'app.name': 'payCcount',
-  'app.tagline': '日本産オンラインEウォレット（デモ）',
-  'app.title': 'payCcount — 日本産オンラインEウォレット（デモ）',
+  'app.tagline': 'チャージ・両替・クリプト・ポイント・決済をひとつのウォレットで',
+  'app.title': 'payCcount',
   'locale.label': '言語',
 
   // ───── ナビゲーション ─────
@@ -295,8 +295,8 @@ const ja = {
 
 const en: Record<keyof typeof ja, string> = {
   'app.name': 'payCcount',
-  'app.tagline': 'Online e-wallet from Japan (demo)',
-  'app.title': 'payCcount — Online e-wallet from Japan (demo)',
+  'app.tagline': 'Top-ups, exchange, crypto, points and payments in one wallet',
+  'app.title': 'payCcount',
   'locale.label': 'Language',
 
   'nav.home': 'Home',
