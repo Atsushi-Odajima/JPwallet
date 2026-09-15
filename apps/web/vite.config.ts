@@ -14,7 +14,7 @@ export default defineConfig({
         // ホーム画面に追加したときの名前は「payCcount」に統一する（デモ表記や説明文は付けない）
         name: 'payCcount',
         short_name: 'payCcount',
-        description: 'payCcount',
+        description: 'payCcount — Global E-wallet',
         lang: 'ja',
         start_url: '/',
         display: 'standalone',

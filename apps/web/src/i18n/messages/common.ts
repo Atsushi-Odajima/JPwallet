@@ -5,7 +5,7 @@
  */
 const ja = {
   'app.name': 'payCcount',
-  'app.tagline': 'チャージ・両替・クリプト・ポイント・決済をひとつのウォレットで',
+  'app.tagline': 'グローバル E-wallet — 通貨・暗号資産・ポイントを 1 つのウォレットで',
   'app.title': 'payCcount',
   'locale.label': '言語',
 
@@ -86,7 +86,7 @@ const ja = {
 
   // ───── デモ表示（TOP ページのフッターのみ） ─────
   'demo.notice': 'これはデモアプリケーションです。',
-  'demo.line1': 'payCcount は「クレジット決済・QR決済に続く第3の国内決済手段」の構想を示す動くプロトタイプです。',
+  'demo.line1': 'payCcount は、通貨・暗号資産・ポイントを 1 つのウォレットで扱うグローバル E-wallet サービスの構想を示す動くプロトタイプです。',
   'demo.line2': '法規制対応・実際の決済／為替／ブロックチェーン接続はスコープ外です。',
 
   // ───── 404 / 権限 ─────
@@ -295,7 +295,7 @@ const ja = {
 
 const en: Record<keyof typeof ja, string> = {
   'app.name': 'payCcount',
-  'app.tagline': 'Top-ups, exchange, crypto, points and payments in one wallet',
+  'app.tagline': 'Global E-wallet — currencies, crypto and points in one wallet',
   'app.title': 'payCcount',
   'locale.label': 'Language',
 
@@ -373,7 +373,7 @@ const en: Record<keyof typeof ja, string> = {
   'common.network_error': 'A network error occurred',
 
   'demo.notice': 'This is a demo application.',
-  'demo.line1': 'payCcount is a working prototype of a "third domestic payment method after credit cards and QR payments" in Japan.',
+  'demo.line1': 'payCcount is a working prototype of a global e-wallet that holds currencies, crypto assets and points in a single wallet.',
   'demo.line2': 'Regulatory compliance and real card, FX or blockchain connections are out of scope.',
 
   'notfound.title': 'Page not found',

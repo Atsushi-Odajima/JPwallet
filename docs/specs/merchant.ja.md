@@ -11,7 +11,7 @@
 
 ## 1. 概要
 
-payCcount は、日本のユーザー向けオンライン E ウォレットであり、「クレジット決済・QR 決済に続く第 3 の国内決済手段」として EC サイトに組み込める決済ブランドである。加盟店は Stripe 風の REST API と JS SDK（`@payccount/js`）で接続し、次の一連の流れを API だけで完結できる。
+payCcount は、法定通貨（JPY / USD / EUR / GBP）・暗号資産（BTC / ETH）・ポイントを 1 つのアカウントで保有できる **グローバル E-wallet サービス**であり、その残高をそのまま国内外の EC サイトで使える決済ブランドである。加盟店は Stripe 風の REST API と JS SDK（`@payccount/js`）で接続し、次の一連の流れを API だけで完結できる。
 
 ```
 APIキー発行 → Checkout Session 作成 → ユーザー決済 → Webhook 受信 → 売上残高反映 → 返金

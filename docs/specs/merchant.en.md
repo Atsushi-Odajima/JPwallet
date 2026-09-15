@@ -12,7 +12,7 @@
 
 ## 1. Overview
 
-payCcount is an online e-wallet for users in Japan, and a payment brand that e-commerce sites can integrate as "the third domestic payment method after credit card and QR-code payments." Merchants integrate through a Stripe-style REST API and a JS SDK (`@payccount/js`), and can complete the following end-to-end sequence entirely through the API.
+payCcount is a **global e-wallet service** that lets a single account hold fiat currencies (JPY / USD / EUR / GBP), crypto assets (BTC / ETH) and points, and a payment brand that spends those balances directly at e-commerce sites at home and abroad. Merchants integrate through a Stripe-style REST API and a JS SDK (`@payccount/js`), and can complete the following end-to-end sequence entirely through the API.
 
 ```
 Issue API key → Create Checkout Session → Customer pays → Receive webhook → Sales balance credited → Refund
