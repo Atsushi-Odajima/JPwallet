@@ -11,6 +11,13 @@
 
 > **これはデモアプリケーションです。** 実際の資金・暗号資産・カード情報は扱いません。外部決済・為替・ブロックチェーン連携はすべてモックです。法規制対応はスコープ外です。
 
+## 実装範囲と確認先
+
+- 外部決済・為替・ブロックチェーン接続はモックです。実資金・実暗号資産・実カード情報は扱いません。
+- メール入力によるデモ認証とローカル用管理者設定を含みます。実サービスの認証・本人確認を実装済みとは扱いません。
+
+実装箇所：[apps/api/src/routes](./apps/api/src/routes) / [apps/web/src/pages](./apps/web/src/pages) / [packages/sdk](./packages/sdk) / [e2e](./e2e)。
+
 ## payCcount は、グローバル E-wallet サービスです
 
 1 つのアカウントで **法定通貨 4 種（JPY / USD / EUR / GBP）・暗号資産（BTC / ETH）・ポイント**を保有し、アプリ内で両替して、そのまま **国内外の EC サイト**で支払えます。ユーザーが何で支払っても、加盟店には **自国の通貨**が入金されます。
@@ -116,7 +123,7 @@ pnpm dev                           # API http://localhost:8787 + ウォレット
 ```
 
 - ウォレット: http://localhost:5173 — デモ認証なのでメールアドレスを入れるだけでログインできます
-- 管理者: ログイン画面「管理者」タブ → ID `kuro` / パスワード `atusi0130` → http://localhost:5173/admin
+- 管理者: ログイン画面「管理者」タブ → ローカルデモの管理者設定（DB初期化スクリプト参照。本番では変更必須） → http://localhost:5173/admin
 - 加盟店: 右上「加盟店ダッシュボード」→ 店舗登録 → 開発者で APIキー・Webhook を発行
 - サンプルEC: [apps/shop-jp/README.md](apps/shop-jp/README.md) / [apps/shop-global/README.md](apps/shop-global/README.md) の手順で `.dev.vars` を設定し `pnpm dev:shop-jp` / `pnpm dev:shop-global`
 
